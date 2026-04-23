@@ -230,10 +230,15 @@ export default function App() {
         </div>
 
         <div>
-          <h2>Signing proof</h2>
+          <h2>Canton signing proof</h2>
           <dl className="data-list">
-            <DataRow label="Sample Canton hash" value={snapshot.sample.cantonHashHex} />
+            <DataRow label="Sample Canton hash (hex)" value={snapshot.sample.cantonHashHex} />
+            <DataRow label="Canton tx hash (base64)" value={snapshot.sample.cantonHashBase64} />
             <DataRow label="Canton signature" value={snapshot.sample.cantonSignatureBase64} />
+            <DataRow
+              label="Signature verified"
+              value={String(snapshot.sample.cantonSignatureVerified)}
+            />
             <DataRow label="idOS message" value={snapshot.sample.idosMessage} />
             <DataRow label="idOS signature" value={snapshot.sample.idosSignatureHex} />
           </dl>

@@ -5,7 +5,7 @@ import { base64ToBytes, bytesToBase64, bytesToHex } from "./bytes";
 import { implicitNearAddress, nearPublicKeyFromBytes, signNearMessage } from "./near";
 
 const STORAGE_KEY = "experiment-canton:shared-signer";
-const SAMPLE_CANTON_HASH = "11".repeat(32);
+const SAMPLE_CANTON_HASH_BYTES = new Uint8Array(32).fill(0x11);
 const SAMPLE_IDOS_MESSAGE = "idOS authentication";
 
 export type SharedSignerRecord = {
@@ -23,8 +23,10 @@ export type SharedSignerSnapshot = {
     walletType: "NEAR";
   };
   sample: {
+    cantonHashBase64: string;
     cantonHashHex: string;
     cantonSignatureBase64: string;
+    cantonSignatureVerified: boolean;
     idosMessage: string;
     idosSignatureHex: string;
   };
@@ -69,14 +71,30 @@ export function signDetachedMessage(
   return nacl.sign.detached(messageBytes, base64ToBytes(privateKeyBase64));
 }
 
+function verifyCantonTransactionHash(
+  transactionHashBase64: string,
+  publicKeyBase64: string,
+  signatureBase64: string,
+): boolean {
+  return nacl.sign.detached.verify(
+    base64ToBytes(transactionHashBase64),
+    base64ToBytes(signatureBase64),
+    base64ToBytes(publicKeyBase64),
+  );
+}
+
 export async function loadOrCreateSharedSigner(forceNew = false): Promise<SharedSignerSnapshot> {
   const record = forceNew ? createSignerRecord() : (readStoredSigner() ?? createSignerRecord());
   persistSigner(record);
 
   const cantonPublicKeyBase64 = getPublicKeyFromPrivate(record.privateKeyBase64);
-  const publicKeyBytes = base64ToBytes(cantonPublicKeyBase64);
+  const publicKeyBytes = nacl.sign.keyPair.fromSecretKey(
+    Uint8Array.from(atob(record.privateKeyBase64), (char) => char.charCodeAt(0)),
+  ).publicKey;
   const ed25519PublicKeyHex = bytesToHex(publicKeyBytes);
   const nearPublicKey = nearPublicKeyFromBytes(publicKeyBytes);
+  const cantonHashBase64 = bytesToBase64(SAMPLE_CANTON_HASH_BYTES);
+  const cantonSignatureBase64 = signTransactionHash(cantonHashBase64, record.privateKeyBase64);
   const idosSignatureBytes = await signNearMessage({
     privateKeyBase64: record.privateKeyBase64,
     message: SAMPLE_IDOS_MESSAGE,
@@ -93,8 +111,14 @@ export async function loadOrCreateSharedSigner(forceNew = false): Promise<Shared
       walletType: "NEAR",
     },
     sample: {
-      cantonHashHex: SAMPLE_CANTON_HASH,
-      cantonSignatureBase64: signTransactionHash(SAMPLE_CANTON_HASH, record.privateKeyBase64),
+      cantonHashBase64,
+      cantonHashHex: bytesToHex(SAMPLE_CANTON_HASH_BYTES),
+      cantonSignatureBase64,
+      cantonSignatureVerified: verifyCantonTransactionHash(
+        cantonHashBase64,
+        cantonPublicKeyBase64,
+        cantonSignatureBase64,
+      ),
       idosMessage: SAMPLE_IDOS_MESSAGE,
       idosSignatureHex: bytesToHex(idosSignatureBytes),
     },
