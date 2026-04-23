@@ -11,6 +11,9 @@
   "dependencies": {
     "@canton-network/wallet-sdk": "^1.0.0",
     "@kwilteam/kwil-js": "^0.9.4",
+    "borsh": "^2.0.0",
+    "bs58": "^6.0.0",
+    "ethers": "^6.15.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tweetnacl": "^1.0.3"

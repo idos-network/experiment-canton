@@ -8,6 +8,17 @@ export type IdosUser = {
   encryption_password_store: "user" | "mpc";
 };
 
+export type IdosWallet = {
+  id: string;
+  user_id: string;
+  address: string;
+  public_key: string | null;
+  wallet_type: string;
+  message: string;
+  signature: string;
+  inserter: string | null;
+};
+
 export async function hasProfile(kwilClient: KwilActionClient, address: string): Promise<boolean> {
   const result = await kwilClient.call<{ has_profile: boolean }[]>({
     name: "has_profile",
@@ -30,4 +41,39 @@ export async function getUser(
   );
 
   return result[0] ?? null;
+}
+
+export async function getWallets(
+  kwilClient: KwilActionClient,
+  signer: KwilSigner | undefined = kwilClient.signer,
+): Promise<IdosWallet[]> {
+  return kwilClient.call<IdosWallet[]>(
+    {
+      name: "get_wallets",
+      inputs: {},
+    },
+    signer,
+  );
+}
+
+export async function addWallet(
+  kwilClient: KwilActionClient,
+  params: {
+    id: string;
+    address: string;
+    public_key: string;
+    wallet_type: "NEAR";
+    message: string;
+    signature: string;
+  },
+  signer: KwilSigner | undefined = kwilClient.signer,
+): Promise<string | undefined> {
+  return kwilClient.execute(
+    {
+      name: "add_wallet",
+      inputs: params,
+      description: "Add a wallet to idOS",
+    },
+    signer,
+  );
 }

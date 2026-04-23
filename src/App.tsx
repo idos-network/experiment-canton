@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { inspectIdosSigner, type IdosInspectorResult } from "./lib/idos/client";
+import { connectEvmWallet } from "./lib/idos/evm";
+import {
+  inspectExistingWallet,
+  inspectIdosSigner,
+  linkGeneratedNearWalletToExistingProfile,
+  type ExistingWalletInspection,
+  type IdosInspectorResult,
+  type LinkGeneratedSignerResult,
+} from "./lib/idos/client";
 import { loadOrCreateSharedSigner, type SharedSignerSnapshot } from "./lib/sharedSigner";
 
 function DataRow({ label, value }: { label: string; value: string }) {
@@ -13,7 +21,7 @@ function DataRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function App() {
-  const [snapshot, setSnapshot] = useState<SharedSignerSnapshot>(() => loadOrCreateSharedSigner());
+  const [snapshot, setSnapshot] = useState<SharedSignerSnapshot | null>(null);
   const [idosState, setIdosState] = useState<{
     error: string | null;
     loading: boolean;
@@ -23,8 +31,38 @@ export default function App() {
     loading: false,
     result: null,
   });
+  const [connectedWallet, setConnectedWallet] = useState<{
+    address: string;
+    signer: Awaited<ReturnType<typeof connectEvmWallet>>["signer"];
+  } | null>(null);
+  const [existingWalletState, setExistingWalletState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: ExistingWalletInspection | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
+  const [linkState, setLinkState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: LinkGeneratedSignerResult | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
+
+  useEffect(() => {
+    loadOrCreateSharedSigner().then(setSnapshot);
+  }, []);
 
   async function handleInspectIdos() {
+    if (!snapshot) {
+      return;
+    }
+
     setIdosState({
       error: null,
       loading: true,
@@ -48,6 +86,95 @@ export default function App() {
     }
   }
 
+  async function handleConnectExistingWallet() {
+    if (!snapshot) {
+      return;
+    }
+
+    setExistingWalletState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+    setLinkState({
+      error: null,
+      loading: false,
+      result: null,
+    });
+
+    try {
+      const wallet = await connectEvmWallet();
+      setConnectedWallet(wallet);
+
+      const result = await inspectExistingWallet(wallet.signer, wallet.address);
+      setExistingWalletState({
+        error: null,
+        loading: false,
+        result,
+      });
+    } catch (error) {
+      setExistingWalletState({
+        error: error instanceof Error ? error.message : "Failed to inspect the connected wallet.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
+
+  async function handleLinkGeneratedWallet() {
+    if (!snapshot || !connectedWallet) {
+      return;
+    }
+
+    setLinkState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+
+    try {
+      const result = await linkGeneratedNearWalletToExistingProfile({
+        existingWalletAddress: connectedWallet.address,
+        existingWalletSigner: connectedWallet.signer,
+        snapshot,
+      });
+
+      setLinkState({
+        error: null,
+        loading: false,
+        result,
+      });
+      setExistingWalletState({
+        error: null,
+        loading: false,
+        result: result.inspection,
+      });
+      setIdosState({
+        error: null,
+        loading: false,
+        result: await inspectIdosSigner(snapshot),
+      });
+    } catch (error) {
+      setLinkState({
+        error: error instanceof Error ? error.message : "Failed to link the generated wallet.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
+
+  if (!snapshot) {
+    return (
+      <main className="app-shell">
+        <section className="hero">
+          <p className="eyebrow">Canton x idOS</p>
+          <h1>Shared signer experiment</h1>
+          <p className="lede">Loading the generated signer...</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <section className="hero">
@@ -63,7 +190,13 @@ export default function App() {
         <div>
           <div className="panel-header">
             <h2>Shared signer</h2>
-            <button className="button" type="button" onClick={() => setSnapshot(loadOrCreateSharedSigner(true))}>
+            <button
+              className="button"
+              type="button"
+              onClick={() => {
+                loadOrCreateSharedSigner(true).then(setSnapshot);
+              }}
+            >
               Regenerate
             </button>
           </div>
@@ -108,6 +241,70 @@ export default function App() {
             </dl>
           ) : null}
           {idosState.error ? <p className="error-text">{idosState.error}</p> : null}
+        </div>
+
+        <div className="note note-card">
+          <div className="panel-header">
+            <h2>Link to existing profile</h2>
+            <button
+              className="button"
+              type="button"
+              onClick={handleConnectExistingWallet}
+              disabled={existingWalletState.loading}
+            >
+              {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
+            </button>
+          </div>
+          <p>
+            This flow uses an existing idOS-linked EVM wallet for authentication, then adds the
+            generated signer as a `NEAR` wallet using its implicit address and a browser-generated
+            NEP-413 signature.
+          </p>
+          {existingWalletState.result ? (
+            <dl className="data-list">
+              <DataRow label="Connected wallet" value={existingWalletState.result.address} />
+              <DataRow label="Has profile" value={String(existingWalletState.result.hasProfile)} />
+              <DataRow
+                label="Profile user ID"
+                value={
+                  existingWalletState.result.user?.id ??
+                  "The connected wallet does not have an idOS profile."
+                }
+              />
+              <DataRow
+                label="Encryption mode"
+                value={existingWalletState.result.user?.encryption_password_store ?? "unknown"}
+              />
+              <DataRow
+                label="Linked wallets"
+                value={String(existingWalletState.result.wallets.length)}
+              />
+            </dl>
+          ) : null}
+          {existingWalletState.result?.user?.encryption_password_store === "mpc" ? (
+            <p className="warning-text">
+              This profile uses MPC. The prototype will add the wallet on the idOS side, but it
+              does not yet sync the wallet into the MPC secret-sharing layer.
+            </p>
+          ) : null}
+          {existingWalletState.result?.hasProfile ? (
+            <button
+              className="button"
+              type="button"
+              onClick={handleLinkGeneratedWallet}
+              disabled={linkState.loading}
+            >
+              {linkState.loading ? "Linking..." : "Link generated signer as NEAR wallet"}
+            </button>
+          ) : null}
+          {existingWalletState.error ? <p className="error-text">{existingWalletState.error}</p> : null}
+          {linkState.result ? (
+            <dl className="data-list">
+              <DataRow label="Link status" value={linkState.result.status} />
+              <DataRow label="Transaction hash" value={linkState.result.txHash ?? "No transaction submitted"} />
+            </dl>
+          ) : null}
+          {linkState.error ? <p className="error-text">{linkState.error}</p> : null}
         </div>
       </section>
     </main>

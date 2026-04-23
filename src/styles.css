@@ -168,6 +168,11 @@ body {
   color: #fca5a5;
 }
 
+.warning-text {
+  margin: 0;
+  color: #fcd34d;
+}
+
 @media (min-width: 800px) {
   .app-shell {
     padding-top: 48px;

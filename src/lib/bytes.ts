@@ -44,3 +44,21 @@ export function base64ToBytes(value: string): Uint8Array {
 
   return bytes;
 }
+
+export function concatBytes(...values: Uint8Array[]): Uint8Array {
+  const totalLength = values.reduce((sum, value) => sum + value.length, 0);
+  const result = new Uint8Array(totalLength);
+
+  let offset = 0;
+
+  for (const value of values) {
+    result.set(value, offset);
+    offset += value.length;
+  }
+
+  return result;
+}
+
+export function uint16ToBigEndian(value: number): Uint8Array {
+  return new Uint8Array([(value >> 8) & 0xff, value & 0xff]);
+}

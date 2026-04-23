@@ -2,6 +2,7 @@ import { getPublicKeyFromPrivate, signTransactionHash } from "@canton-network/wa
 import nacl from "tweetnacl";
 
 import { base64ToBytes, bytesToBase64, bytesToHex } from "./bytes";
+import { implicitNearAddress, nearPublicKeyFromBytes, signNearMessage } from "./near";
 
 const STORAGE_KEY = "experiment-canton:shared-signer";
 const SAMPLE_CANTON_HASH = "11".repeat(32);
@@ -18,8 +19,8 @@ export type SharedSignerSnapshot = {
   idosAdapter: {
     publicAddress: string;
     publicKey: string;
-    signatureType: "ed25519";
-    walletType: "FaceSign";
+    signatureType: "nep413";
+    walletType: "NEAR";
   };
   sample: {
     cantonHashHex: string;
@@ -59,12 +60,6 @@ function persistSigner(record: SharedSignerRecord): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
 }
 
-function toIdosSignature(privateKeyBase64: string, message: string): string {
-  const signature = signDetachedMessage(privateKeyBase64, new TextEncoder().encode(message));
-
-  return bytesToHex(signature);
-}
-
 export function signDetachedMessage(
   privateKeyBase64: string,
   message: string | Uint8Array,
@@ -74,28 +69,34 @@ export function signDetachedMessage(
   return nacl.sign.detached(messageBytes, base64ToBytes(privateKeyBase64));
 }
 
-export function loadOrCreateSharedSigner(forceNew = false): SharedSignerSnapshot {
+export async function loadOrCreateSharedSigner(forceNew = false): Promise<SharedSignerSnapshot> {
   const record = forceNew ? createSignerRecord() : (readStoredSigner() ?? createSignerRecord());
   persistSigner(record);
 
   const cantonPublicKeyBase64 = getPublicKeyFromPrivate(record.privateKeyBase64);
-  const ed25519PublicKeyHex = bytesToHex(base64ToBytes(cantonPublicKeyBase64));
+  const publicKeyBytes = base64ToBytes(cantonPublicKeyBase64);
+  const ed25519PublicKeyHex = bytesToHex(publicKeyBytes);
+  const nearPublicKey = nearPublicKeyFromBytes(publicKeyBytes);
+  const idosSignatureBytes = await signNearMessage({
+    privateKeyBase64: record.privateKeyBase64,
+    message: SAMPLE_IDOS_MESSAGE,
+  });
 
   return {
     privateKeyBase64: record.privateKeyBase64,
     cantonPublicKeyBase64,
     ed25519PublicKeyHex,
     idosAdapter: {
-      publicAddress: ed25519PublicKeyHex,
-      publicKey: ed25519PublicKeyHex,
-      signatureType: "ed25519",
-      walletType: "FaceSign",
+      publicAddress: implicitNearAddress(publicKeyBytes),
+      publicKey: nearPublicKey,
+      signatureType: "nep413",
+      walletType: "NEAR",
     },
     sample: {
       cantonHashHex: SAMPLE_CANTON_HASH,
       cantonSignatureBase64: signTransactionHash(SAMPLE_CANTON_HASH, record.privateKeyBase64),
       idosMessage: SAMPLE_IDOS_MESSAGE,
-      idosSignatureHex: toIdosSignature(record.privateKeyBase64, SAMPLE_IDOS_MESSAGE),
+      idosSignatureHex: bytesToHex(idosSignatureBytes),
     },
   };
 }

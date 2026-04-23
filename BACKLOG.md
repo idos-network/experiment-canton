@@ -18,32 +18,25 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 
 ## Milestone 1: Shared signer spike
 
-- [ ] Initialize a TypeScript app in this repo
-- [ ] Add a minimal local app shell for the demo
-- [ ] Integrate Canton Wallet SDK
-- [ ] Implement Ed25519 key generation/load for the Canton signer
-- [ ] Implement a Canton signer module that can:
-  - [ ] expose public key and derived identifiers
-  - [ ] sign Canton transaction hashes
-- [ ] Implement an idOS signer adapter backed by the same Ed25519 key
-- [ ] Validate which idOS wallet path is the right bridge for the PoC:
-  - [ ] custom signer
-  - [ ] `FaceSign`-style raw Ed25519 path
-- [ ] Build demo UI flow:
-  - [ ] create/load signer
-  - [ ] show signer public key and metadata
-  - [ ] check idOS profile existence
-  - [ ] if linked, log in to idOS
-  - [ ] show basic idOS profile state
-  - [ ] show Canton signing proof
-- [ ] Add basic smoke tests or scripted verification where practical
+- [x] Initialize a TypeScript app in this repo
+- [x] Add a minimal local app shell for the demo
+- [x] Integrate Canton Wallet SDK
+- [x] Implement Ed25519 key generation/load for the Canton signer
+- [x] Implement a Canton signer module that can expose public key and derived identifiers
+- [x] Implement a Canton signer module that can sign Canton transaction hashes
+- [x] Implement an idOS signer adapter backed by the same Ed25519 key
+- [x] Validate the idOS bridge approach for the PoC
+- [x] Build demo UI flow for signer creation and metadata display
+- [x] Build demo UI flow for Canton signing proof
+- [x] Build demo UI flow for idOS profile existence checks
+- [x] Add basic scripted verification for NEP-413 payload packing and idOS node reachability
 
 ## Milestone 2: Bootstrap/linking
 
-- [ ] Determine whether our local app can embed FaceSign directly
-- [ ] If yes, implement one-time profile creation/link flow in-repo
-- [ ] If no, document the manual bootstrap via `app.idos.network`
-- [ ] Verify that a profile created or linked through FaceSign can later be used by the shared Canton signer flow
+- [ ] Complete the existing-wallet flow that links the generated signer as a `NEAR` wallet
+- [ ] Validate the end-to-end linking flow in a browser with a real idOS profile
+- [ ] Verify that the linked signer can authenticate to idOS after being added
+- [ ] Decide whether FaceSign bootstrap is still needed once existing-wallet linking works
 
 ## Milestone 3: Cleanup
 
@@ -53,9 +46,9 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 
 ## Open questions
 
-- [ ] Does idOS accept the shared signer cleanly through the current custom-signer path, or do we need to present it specifically as `FaceSign`?
+- [ ] Does the linked `NEAR` wallet path authenticate cleanly for the generated signer after browser-side linking?
 - [ ] What is the minimum Canton setup needed to demonstrate signer legitimacy without pulling in unnecessary network complexity?
-- [ ] Can FaceSign bootstrap be exercised from localhost, or only from idOS-controlled origins?
+- [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
 ## Not doing now
 
