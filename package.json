@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "canton:bridge": "node server/canton-bridge.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

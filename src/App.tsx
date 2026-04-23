@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 
+import {
+  getCantonBridgeUrl,
+  probeCantonBridge,
+  type CantonBridgeHealth,
+} from "./lib/cantonBridge";
 import { connectEvmWallet } from "./lib/idos/evm";
 import {
   inspectExistingWallet,
@@ -43,6 +48,15 @@ function WalletSummaryList({
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<SharedSignerSnapshot | null>(null);
+  const [cantonBridgeState, setCantonBridgeState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: CantonBridgeHealth | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
   const [idosState, setIdosState] = useState<{
     error: string | null;
     loading: boolean;
@@ -77,7 +91,33 @@ export default function App() {
 
   useEffect(() => {
     loadOrCreateSharedSigner().then(setSnapshot);
+    handleProbeCantonBridge();
   }, []);
+
+  async function handleProbeCantonBridge() {
+    setCantonBridgeState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+
+    try {
+      const result = await probeCantonBridge();
+
+      setCantonBridgeState({
+        error: null,
+        loading: false,
+        result,
+      });
+    } catch (error) {
+      setCantonBridgeState({
+        error:
+          error instanceof Error ? error.message : "Failed to reach the local Canton bridge.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
 
   async function handleInspectIdos() {
     if (!snapshot) {
@@ -242,6 +282,45 @@ export default function App() {
             <DataRow label="idOS message" value={snapshot.sample.idosMessage} />
             <DataRow label="idOS signature" value={snapshot.sample.idosSignatureHex} />
           </dl>
+        </div>
+
+        <div className="note note-card">
+          <div className="panel-header">
+            <h2>Canton bridge</h2>
+            <button
+              className="button"
+              type="button"
+              onClick={handleProbeCantonBridge}
+              disabled={cantonBridgeState.loading}
+            >
+              {cantonBridgeState.loading ? "Checking..." : "Refresh bridge"}
+            </button>
+          </div>
+          <p>
+            Run <code>pnpm canton:bridge</code> to start the local Node bridge that will prepare
+            Canton external-party topology using the same signer shown above.
+          </p>
+          {cantonBridgeState.result ? (
+            <dl className="data-list">
+              <DataRow label="Bridge URL" value={getCantonBridgeUrl()} />
+              <DataRow label="Network target" value={cantonBridgeState.result.network} />
+              <DataRow label="Configured" value={String(cantonBridgeState.result.configured)} />
+              <DataRow
+                label="Ledger API URL"
+                value={cantonBridgeState.result.ledgerClientUrl ?? "Not configured"}
+              />
+              <DataRow
+                label="Auth method"
+                value={cantonBridgeState.result.authMethod ?? "Not configured"}
+              />
+            </dl>
+          ) : null}
+          {cantonBridgeState.result?.missingFields.length ? (
+            <p className="muted-text">
+              Missing env: {cantonBridgeState.result.missingFields.join(", ")}
+            </p>
+          ) : null}
+          {cantonBridgeState.error ? <p className="error-text">{cantonBridgeState.error}</p> : null}
         </div>
 
         <div className="note note-card">

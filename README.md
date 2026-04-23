@@ -17,6 +17,7 @@ Working today:
 - derive a `NEAR` wallet view for idOS from that same keypair
 - link that generated signer to an existing idOS profile
 - authenticate to idOS using the generated signer after linking
+- probe a local Canton bridge that is meant to talk to a validator-backed external-party flow
 
 ## Stack
 
@@ -32,6 +33,12 @@ Working today:
 ```bash
 pnpm install
 pnpm dev
+```
+
+In a second terminal, start the local Canton bridge:
+
+```bash
+pnpm canton:bridge
 ```
 
 Then open the local Vite URL in a browser with an injected EVM wallet.
@@ -64,6 +71,8 @@ The proof used for idOS is a browser-generated NEP-413 signature. This kept the 
 
 - [src/lib/sharedSigner.ts](src/lib/sharedSigner.ts)
   Shared Ed25519 key lifecycle plus Canton/idOS views of the same key
+- [server/canton-bridge.mjs](server/canton-bridge.mjs)
+  Local Node bridge for Canton external-party topology preparation
 - [src/lib/near.ts](src/lib/near.ts)
   NEP-413 message construction and signing
 - [src/lib/idos/client.ts](src/lib/idos/client.ts)
@@ -71,9 +80,29 @@ The proof used for idOS is a browser-generated NEP-413 signature. This kept the 
 - [src/App.tsx](src/App.tsx)
   Demo UI and browser flow
 
+## Canton bridge
+
+The browser app does not talk to the Canton SDK directly for the real network path anymore.
+Instead it expects a small local bridge process:
+
+- `GET /healthz`
+  Returns bridge config status for the UI
+- `POST /v1/external-party/topology`
+  Accepts a Canton public key and returns prepared external-party topology plus the `multiHash` that the browser signer should sign
+
+Bridge configuration is env-driven:
+
+- `CANTON_NETWORK=localnet`
+  Uses the documented LocalNet defaults plus the standard unsafe self-signed auth
+- `CANTON_NETWORK=devnet` or `custom`
+  Requires your own validator ledger API URL and self-signed auth env vars
+
+There is an `.env.example` file with the supported variables.
+
 ## Validation used so far
 
 - `pnpm build`
+- `pnpm canton:bridge` plus `GET /healthz`
 - direct reachability checks against `https://nodes.idos.network`
 - local NEP-413 packing and verification sanity checks
 - browser validation with a real idOS profile
@@ -81,14 +110,16 @@ The proof used for idOS is a browser-generated NEP-413 signature. This kept the 
 ## Known limits
 
 - No Daml code
-- No Canton network write path yet
-- No Canton external-party allocation flow yet
+- No Canton external-party execute step yet
+- No Canton token transfer or ping submission path yet
+- DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - No MPC-specific wallet sync work
 - The generated key is stored in browser `localStorage`
 - Bundle size is large because the current app pulls the Canton SDK into the browser bundle
 
 ## Next likely steps
 
-- replace the sample Canton signing panel with a more explicit external-party preparation flow
-- decide whether a real Canton provider should be added to the demo
-- reduce bundle size by code-splitting or moving some Canton logic off the initial client path
+- connect the browser signer to the bridge topology endpoint and sign the returned `multiHash`
+- add the matching bridge-side execute step for external-party allocation
+- decide whether the first real network target is LocalNet or an allowlisted DevNet validator
+- reduce bundle size by moving more Canton-specific code out of the browser path

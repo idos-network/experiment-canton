@@ -38,7 +38,15 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [x] Verify that the linked signer can authenticate to idOS after being added
 - [x] Decide that FaceSign bootstrap is not needed for the current experiment path
 
-## Milestone 3: Cleanup
+## Milestone 3: Canton bridge
+
+- [x] Decide to avoid a gated browser wallet for the first Canton network path
+- [x] Add a local Canton bridge process that can be started outside the browser app
+- [x] Add a bridge health endpoint so the frontend can detect local Canton readiness
+- [x] Add an external-party topology preparation endpoint that accepts a public key
+- [x] Document the bridge env contract for `localnet` and validator-backed `devnet`
+
+## Milestone 4: Cleanup
 
 - [x] Document local setup and required env vars
 - [x] Document exact limits and known shortcuts in the PoC
@@ -46,7 +54,8 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 
 ## Open questions
 
-- [ ] What is the minimum Canton setup needed to demonstrate signer legitimacy without pulling in unnecessary network complexity?
+- [ ] Should the first real Canton end-to-end path use LocalNet or an allowlisted DevNet validator?
+- [ ] When we add the execute step, should the browser sign the returned `multiHash` directly or should the bridge own a session cache for prepared topology payloads?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
 ## Not doing now
@@ -55,3 +64,4 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [ ] Canton account abstraction
 - [ ] Production key isolation
 - [ ] Full UX polish
+- [ ] Browser-wallet-specific Canton integration
