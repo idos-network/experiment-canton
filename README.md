@@ -20,6 +20,7 @@ Working today:
 - probe a local Canton bridge that is meant to talk to a validator-backed external-party flow
 - request prepared Canton external-party topology for the shared signer from the UI
 - sign the returned Canton `multiHash` in the browser and send it back for allocation
+- validate the same prepare-sign-allocate Canton flow against LocalNet from a repeatable smoke script
 
 ## Stack
 
@@ -54,6 +55,7 @@ pnpm canton:localnet:doctor
 pnpm canton:localnet:download
 pnpm canton:localnet:up
 pnpm canton:bridge:localnet
+pnpm canton:bridge:smoke
 ```
 
 Notes:
@@ -98,6 +100,8 @@ The proof used for idOS is a browser-generated NEP-413 signature. This kept the 
   Local Node bridge for Canton external-party topology preparation
 - [scripts/canton-localnet.sh](scripts/canton-localnet.sh)
   Repo-local LocalNet download and compose wrapper
+- [scripts/canton-bridge-smoke.mjs](scripts/canton-bridge-smoke.mjs)
+  CLI smoke test for the prepare-sign-allocate bridge roundtrip
 - [src/lib/near.ts](src/lib/near.ts)
   NEP-413 message construction and signing
 - [src/lib/idos/client.ts](src/lib/idos/client.ts)
@@ -139,6 +143,7 @@ There is an `.env.example` file with the supported variables.
 - `pnpm canton:localnet:download`
 - `CANTON_LOCALNET_DRY_RUN=1 pnpm canton:localnet:up`
 - `pnpm canton:bridge` plus `GET /healthz`
+- `pnpm canton:bridge:smoke` against a running LocalNet bridge
 - direct reachability checks against `https://nodes.idos.network`
 - local NEP-413 packing and verification sanity checks
 - browser validation with a real idOS profile
@@ -146,9 +151,8 @@ There is an `.env.example` file with the supported variables.
 ## Known limits
 
 - No Daml code
-- No validated Canton external-party execute success path yet
+- No validated Canton post-allocation ledger write yet
 - No Canton token transfer or ping submission path yet
-- LocalNet orchestration is scripted, but full startup has not been validated on this machine yet
 - DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - No MPC-specific wallet sync work
 - The generated key is stored in browser `localStorage`
@@ -156,7 +160,6 @@ There is an `.env.example` file with the supported variables.
 
 ## Next likely steps
 
-- validate the full prepare-sign-allocate path against either LocalNet or an allowlisted DevNet validator
 - add a real post-allocation transaction flow such as ping or tap
 - decide whether a DevNet-specific validation loop is still needed after LocalNet works
 - reduce bundle size by moving more Canton-specific code out of the browser path

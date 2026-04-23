@@ -6,6 +6,7 @@
   "scripts": {
     "canton:bridge": "node server/canton-bridge.mjs",
     "canton:bridge:localnet": "CANTON_NETWORK=localnet node server/canton-bridge.mjs",
+    "canton:bridge:smoke": "node scripts/canton-bridge-smoke.mjs",
     "canton:localnet:doctor": "bash scripts/canton-localnet.sh doctor",
     "canton:localnet:download": "bash scripts/canton-localnet.sh download",
     "canton:localnet:env": "bash scripts/canton-localnet.sh env",

@@ -6,10 +6,12 @@ const DEFAULT_PORT = 8787;
 const LOCALNET_AUTH = {
   method: "self_signed",
   issuer: "unsafe-auth",
-  audience: "https://canton.network.global",
-  scope: "",
-  clientId: localNetStaticConfig.LOCALNET_USER_ID,
-  clientSecret: "unsafe",
+  credentials: {
+    audience: "https://canton.network.global",
+    scope: "",
+    clientId: localNetStaticConfig.LOCALNET_USER_ID,
+    clientSecret: "unsafe",
+  },
 };
 
 let sdkPromise;
@@ -70,10 +72,12 @@ function loadBridgeConfig() {
           ? {
               method: "self_signed",
               issuer: readEnv("CANTON_AUTH_ISSUER"),
-              audience: readEnv("CANTON_AUTH_AUDIENCE"),
-              scope: readEnv("CANTON_AUTH_SCOPE") ?? "",
-              clientId: readEnv("CANTON_AUTH_CLIENT_ID"),
-              clientSecret: readEnv("CANTON_AUTH_CLIENT_SECRET"),
+              credentials: {
+                audience: readEnv("CANTON_AUTH_AUDIENCE"),
+                scope: readEnv("CANTON_AUTH_SCOPE") ?? "",
+                clientId: readEnv("CANTON_AUTH_CLIENT_ID"),
+                clientSecret: readEnv("CANTON_AUTH_CLIENT_SECRET"),
+              },
             }
           : null,
     };
@@ -99,8 +103,8 @@ function toPublicHealth(config) {
     ledgerClientUrl: config.ledgerClientUrl,
     authMethod: config.auth?.method ?? null,
     issuer: config.auth?.issuer ?? null,
-    audience: config.auth?.audience ?? null,
-    clientId: config.auth?.clientId ?? null,
+    audience: config.auth?.credentials?.audience ?? null,
+    clientId: config.auth?.credentials?.clientId ?? null,
     missingFields: config.missingFields,
   };
 }

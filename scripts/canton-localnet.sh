@@ -21,6 +21,7 @@ COMPOSE_ENV_FILE=""
 COMMON_ENV_FILE=""
 COMPOSE_FILE=""
 RESOURCE_FILE=""
+RENDERED_COMPOSE_FILE=""
 COMPOSE_BIN=()
 
 podman_ready() {
@@ -141,6 +142,7 @@ resolve_release() {
   COMMON_ENV_FILE="$LOCALNET_DIR/env/common.env"
   COMPOSE_FILE="$LOCALNET_DIR/compose.yaml"
   RESOURCE_FILE="$LOCALNET_DIR/resource-constraints.yaml"
+  RENDERED_COMPOSE_FILE="$WORK_ROOT/generated/compose.rendered.yaml"
 }
 
 ensure_bundle() {
@@ -159,19 +161,117 @@ ensure_bundle() {
   run tar -xzf "$TARBALL_PATH" -C "$EXTRACT_DIR"
 }
 
+resolve_published_port() {
+  local host_port="$1"
+  local container_port="$2"
+
+  if [[ -v TEST_PORT ]]; then
+    printf '%s%s' "$TEST_PORT" "$container_port"
+    return
+  fi
+
+  printf '%s:%s' "$host_port" "$container_port"
+}
+
+render_compose_file() {
+  local rendered pattern replacement
+
+  mkdir -p "$(dirname "$RENDERED_COMPOSE_FILE")"
+  rendered="$(<"$COMPOSE_FILE")"
+
+  pattern='${TEST_PORT-$DB_PORT:}5432'
+  replacement="$(resolve_published_port "$DB_PORT" "5432")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-4$PARTICIPANT_LEDGER_API_PORT_SUFFIX:}4${PARTICIPANT_LEDGER_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "4${PARTICIPANT_LEDGER_API_PORT_SUFFIX}" "4${PARTICIPANT_LEDGER_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-4$PARTICIPANT_ADMIN_API_PORT_SUFFIX:}4${PARTICIPANT_ADMIN_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "4${PARTICIPANT_ADMIN_API_PORT_SUFFIX}" "4${PARTICIPANT_ADMIN_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-4$PARTICIPANT_JSON_API_PORT_SUFFIX:}4${PARTICIPANT_JSON_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "4${PARTICIPANT_JSON_API_PORT_SUFFIX}" "4${PARTICIPANT_JSON_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-3$PARTICIPANT_LEDGER_API_PORT_SUFFIX:}3${PARTICIPANT_LEDGER_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "3${PARTICIPANT_LEDGER_API_PORT_SUFFIX}" "3${PARTICIPANT_LEDGER_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-3$PARTICIPANT_ADMIN_API_PORT_SUFFIX:}3${PARTICIPANT_ADMIN_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "3${PARTICIPANT_ADMIN_API_PORT_SUFFIX}" "3${PARTICIPANT_ADMIN_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-3$PARTICIPANT_JSON_API_PORT_SUFFIX:}3${PARTICIPANT_JSON_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "3${PARTICIPANT_JSON_API_PORT_SUFFIX}" "3${PARTICIPANT_JSON_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-2$PARTICIPANT_LEDGER_API_PORT_SUFFIX:}2${PARTICIPANT_LEDGER_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "2${PARTICIPANT_LEDGER_API_PORT_SUFFIX}" "2${PARTICIPANT_LEDGER_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-2$PARTICIPANT_ADMIN_API_PORT_SUFFIX:}2${PARTICIPANT_ADMIN_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "2${PARTICIPANT_ADMIN_API_PORT_SUFFIX}" "2${PARTICIPANT_ADMIN_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-2$PARTICIPANT_JSON_API_PORT_SUFFIX:}2${PARTICIPANT_JSON_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "2${PARTICIPANT_JSON_API_PORT_SUFFIX}" "2${PARTICIPANT_JSON_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-4$VALIDATOR_ADMIN_API_PORT_SUFFIX:}4${VALIDATOR_ADMIN_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "4${VALIDATOR_ADMIN_API_PORT_SUFFIX}" "4${VALIDATOR_ADMIN_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-3$VALIDATOR_ADMIN_API_PORT_SUFFIX:}3${VALIDATOR_ADMIN_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "3${VALIDATOR_ADMIN_API_PORT_SUFFIX}" "3${VALIDATOR_ADMIN_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  pattern='${TEST_PORT-2$VALIDATOR_ADMIN_API_PORT_SUFFIX:}2${VALIDATOR_ADMIN_API_PORT_SUFFIX}'
+  replacement="$(resolve_published_port "2${VALIDATOR_ADMIN_API_PORT_SUFFIX}" "2${VALIDATOR_ADMIN_API_PORT_SUFFIX}")"
+  rendered="${rendered//"$pattern"/$replacement}"
+
+  rendered="${rendered//'image: "postgres:${POSTGRES_VERSION}"'/'image: "docker.io/library/postgres:${POSTGRES_VERSION}"'}"
+  rendered="${rendered//'image: "nginx:${NGINX_VERSION}"'/'image: "docker.io/library/nginx:${NGINX_VERSION}"'}"
+  rendered="${rendered//'image: busybox:1.37.0'/'image: docker.io/library/busybox:1.37.0'}"
+  rendered="${rendered//'image: swaggerapi/swagger-ui'/'image: docker.io/swaggerapi/swagger-ui'}"
+
+  printf '%s' "$rendered" > "$RENDERED_COMPOSE_FILE"
+}
+
 compose_base_args() {
   printf '%s\0' \
     --env-file "$COMPOSE_ENV_FILE" \
     --env-file "$COMMON_ENV_FILE" \
-    -f "$COMPOSE_FILE" \
+    -f "$RENDERED_COMPOSE_FILE" \
     -f "$RESOURCE_FILE" \
     --profile sv \
     --profile app-provider \
     --profile app-user
 }
 
+set_compose_env_defaults() {
+  export IMAGE_TAG="${IMAGE_TAG:-$RELEASE_VERSION}"
+  export LOCALNET_DIR
+
+  # podman-compose evaluates compose interpolation before --env-file defaults
+  # have fully taken effect, so seed the bundle's defaults in the shell first.
+  set -a
+  # shellcheck disable=SC1090
+  source "$COMPOSE_ENV_FILE"
+  # shellcheck disable=SC1090
+  source "$COMMON_ENV_FILE"
+  set +a
+
+  export DOCKER_NETWORK="${DOCKER_NETWORK:-localnet}"
+  export PARTY_HINT="${PARTY_HINT:-${DOCKER_NETWORK}-localparty-1}"
+}
+
 compose_with_base() {
   local args=()
+
+  set_compose_env_defaults
+  render_compose_file
 
   while IFS= read -r -d '' arg; do
     args+=("$arg")

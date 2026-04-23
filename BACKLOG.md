@@ -56,9 +56,16 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [x] Prefer `podman-compose` with compose-engine fallbacks
 - [x] Resolve the latest Splice release bundle dynamically from GitHub
 - [x] Keep LocalNet artifacts in a repo-local gitignored cache directory
-- [ ] Validate a full LocalNet startup on this machine once the Podman connection is healthy
+- [x] Validate a full LocalNet startup on this machine
 
-## Milestone 5: Cleanup
+## Milestone 5: Real Canton roundtrip
+
+- [x] Fix the Canton bridge auth config to match the Wallet SDK runtime shape
+- [x] Validate real external-party topology preparation against LocalNet
+- [x] Validate real external-party allocation against LocalNet
+- [x] Add a repeatable smoke script for the prepare-sign-allocate bridge flow
+
+## Milestone 6: Cleanup
 
 - [x] Document local setup and required env vars
 - [x] Document exact limits and known shortcuts in the PoC
@@ -67,6 +74,7 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 ## Open questions
 
 - [ ] Once LocalNet is working, do we still need a separate DevNet validation loop for the signer handoff?
+- [ ] What is the cleanest next Canton transaction after allocation: ping, tap, or another minimal ledger write?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
 ## Not doing now
