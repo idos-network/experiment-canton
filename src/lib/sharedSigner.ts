@@ -60,12 +60,18 @@ function persistSigner(record: SharedSignerRecord): void {
 }
 
 function toIdosSignature(privateKeyBase64: string, message: string): string {
-  const signature = nacl.sign.detached(
-    new TextEncoder().encode(message),
-    base64ToBytes(privateKeyBase64),
-  );
+  const signature = signDetachedMessage(privateKeyBase64, new TextEncoder().encode(message));
 
   return bytesToHex(signature);
+}
+
+export function signDetachedMessage(
+  privateKeyBase64: string,
+  message: string | Uint8Array,
+): Uint8Array {
+  const messageBytes = typeof message === "string" ? new TextEncoder().encode(message) : message;
+
+  return nacl.sign.detached(messageBytes, base64ToBytes(privateKeyBase64));
 }
 
 export function loadOrCreateSharedSigner(forceNew = false): SharedSignerSnapshot {

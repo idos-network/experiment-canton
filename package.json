@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@canton-network/wallet-sdk": "^1.0.0",
+    "@kwilteam/kwil-js": "^0.9.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tweetnacl": "^1.0.3"
