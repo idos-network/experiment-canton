@@ -83,6 +83,13 @@ function verifyCantonTransactionHash(
   );
 }
 
+export function signCantonTransactionHash(
+  privateKeyBase64: string,
+  transactionHashBase64: string,
+): string {
+  return signTransactionHash(transactionHashBase64, privateKeyBase64);
+}
+
 export async function loadOrCreateSharedSigner(forceNew = false): Promise<SharedSignerSnapshot> {
   const record = forceNew ? createSignerRecord() : (readStoredSigner() ?? createSignerRecord());
   persistSigner(record);

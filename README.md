@@ -19,6 +19,7 @@ Working today:
 - authenticate to idOS using the generated signer after linking
 - probe a local Canton bridge that is meant to talk to a validator-backed external-party flow
 - request prepared Canton external-party topology for the shared signer from the UI
+- sign the returned Canton `multiHash` in the browser and send it back for allocation
 
 ## Stack
 
@@ -90,6 +91,8 @@ Instead it expects a small local bridge process:
   Returns bridge config status for the UI
 - `POST /v1/external-party/topology`
   Accepts a Canton public key and returns prepared external-party topology plus the `multiHash` that the browser signer should sign
+- `POST /v1/external-party/allocate`
+  Accepts the same public key plus the browser-produced signature and submits the allocation request
 
 Bridge configuration is env-driven:
 
@@ -111,7 +114,7 @@ There is an `.env.example` file with the supported variables.
 ## Known limits
 
 - No Daml code
-- No Canton external-party execute step yet
+- No validated Canton external-party execute success path yet
 - No Canton token transfer or ping submission path yet
 - DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - No MPC-specific wallet sync work
@@ -120,7 +123,7 @@ There is an `.env.example` file with the supported variables.
 
 ## Next likely steps
 
-- sign the bridge-returned `multiHash` in the browser and display the resulting signature
-- add the matching bridge-side execute step for external-party allocation
+- validate the full prepare-sign-allocate path against either LocalNet or an allowlisted DevNet validator
+- add a real post-allocation transaction flow such as ping or tap
 - decide whether the first real network target is LocalNet or an allowlisted DevNet validator
 - reduce bundle size by moving more Canton-specific code out of the browser path

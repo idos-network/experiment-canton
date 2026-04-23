@@ -45,6 +45,8 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [x] Add a bridge health endpoint so the frontend can detect local Canton readiness
 - [x] Add an external-party topology preparation endpoint that accepts a public key
 - [x] Wire the frontend to request external-party topology for the shared signer
+- [x] Wire the shared signer to sign a bridge-returned Canton `multiHash`
+- [x] Add a bridge endpoint and UI action for external-party allocation submission
 - [x] Document the bridge env contract for `localnet` and validator-backed `devnet`
 
 ## Milestone 4: Cleanup
@@ -56,7 +58,6 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 ## Open questions
 
 - [ ] Should the first real Canton end-to-end path use LocalNet or an allowlisted DevNet validator?
-- [ ] When we add the execute step, should the browser sign the returned `multiHash` directly or should the bridge own a session cache for prepared topology payloads?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
 ## Not doing now

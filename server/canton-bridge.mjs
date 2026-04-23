@@ -207,6 +207,47 @@ async function handlePrepareTopology(request, response) {
   });
 }
 
+async function handleAllocateParty(request, response) {
+  const config = loadBridgeConfig();
+
+  if (!config.configured) {
+    writeJson(response, 400, {
+      ok: false,
+      error: "Canton bridge is not configured.",
+      missingFields: config.missingFields,
+    });
+    return;
+  }
+
+  const payload = await readRequestBody(request);
+  const body =
+    payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  const publicKeyBase64 =
+    typeof body.publicKeyBase64 === "string" ? body.publicKeyBase64.trim() : "";
+  const partyHint = typeof body.partyHint === "string" ? body.partyHint.trim() : "";
+  const signature = typeof body.signature === "string" ? body.signature.trim() : "";
+
+  if (!publicKeyBase64 || !signature) {
+    writeJson(response, 400, {
+      ok: false,
+      error: "`publicKeyBase64` and `signature` are required.",
+    });
+    return;
+  }
+
+  const sdk = await getSdk(config);
+  const prepared = sdk.party.external.create(
+    publicKeyBase64,
+    partyHint ? { partyHint } : undefined,
+  );
+  const allocation = await prepared.execute(signature);
+
+  writeJson(response, 200, {
+    ok: true,
+    allocation,
+  });
+}
+
 const server = createServer(async (request, response) => {
   const method = request.method ?? "GET";
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
@@ -224,6 +265,11 @@ const server = createServer(async (request, response) => {
 
     if (method === "POST" && url.pathname === "/v1/external-party/topology") {
       await handlePrepareTopology(request, response);
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/external-party/allocate") {
+      await handleAllocateParty(request, response);
       return;
     }
 

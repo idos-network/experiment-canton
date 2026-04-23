@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 
 import {
+  allocateCantonExternalParty,
   getCantonBridgeUrl,
   prepareCantonExternalPartyTopology,
   probeCantonBridge,
+  type CantonAllocatedParty,
   type CantonBridgeHealth,
   type CantonPreparedTopology,
 } from "./lib/cantonBridge";
@@ -16,7 +18,11 @@ import {
   type IdosInspectorResult,
   type LinkGeneratedSignerResult,
 } from "./lib/idos/client";
-import { loadOrCreateSharedSigner, type SharedSignerSnapshot } from "./lib/sharedSigner";
+import {
+  loadOrCreateSharedSigner,
+  signCantonTransactionHash,
+  type SharedSignerSnapshot,
+} from "./lib/sharedSigner";
 
 function DataRow({ label, value }: { label: string; value: string }) {
   return (
@@ -64,6 +70,16 @@ export default function App() {
     error: string | null;
     loading: boolean;
     result: CantonPreparedTopology | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
+  const [cantonSignature, setCantonSignature] = useState<string | null>(null);
+  const [cantonAllocationState, setCantonAllocationState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: CantonAllocatedParty | null;
   }>({
     error: null,
     loading: false,
@@ -181,12 +197,66 @@ export default function App() {
         loading: false,
         result,
       });
+      setCantonSignature(null);
+      setCantonAllocationState({
+        error: null,
+        loading: false,
+        result: null,
+      });
     } catch (error) {
       setCantonTopologyState({
         error:
           error instanceof Error
             ? error.message
             : "Failed to prepare Canton external-party topology.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
+
+  function handleSignPreparedTopology() {
+    if (!snapshot || !cantonTopologyState.result) {
+      return;
+    }
+
+    setCantonSignature(
+      signCantonTransactionHash(snapshot.privateKeyBase64, cantonTopologyState.result.multiHash),
+    );
+    setCantonAllocationState({
+      error: null,
+      loading: false,
+      result: null,
+    });
+  }
+
+  async function handleAllocateCantonParty() {
+    if (!snapshot || !cantonTopologyState.result || !cantonSignature) {
+      return;
+    }
+
+    setCantonAllocationState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+
+    try {
+      const result = await allocateCantonExternalParty({
+        partyHint,
+        publicKeyBase64: snapshot.cantonPublicKeyBase64,
+        signature: cantonSignature,
+      });
+
+      setCantonAllocationState({
+        error: null,
+        loading: false,
+        result,
+      });
+    } catch (error) {
+      setCantonAllocationState({
+        error:
+          error instanceof Error ? error.message : "Failed to allocate the Canton external party.",
         loading: false,
         result: null,
       });
@@ -411,7 +481,37 @@ export default function App() {
               />
             </dl>
           ) : null}
+          {cantonTopologyState.result ? (
+            <button className="button" type="button" onClick={handleSignPreparedTopology}>
+              Sign multi-hash
+            </button>
+          ) : null}
+          {cantonSignature ? (
+            <dl className="data-list">
+              <DataRow label="Prepared signature" value={cantonSignature} />
+            </dl>
+          ) : null}
+          {cantonSignature ? (
+            <button
+              className="button"
+              type="button"
+              onClick={handleAllocateCantonParty}
+              disabled={cantonAllocationState.loading}
+            >
+              {cantonAllocationState.loading ? "Allocating..." : "Allocate external party"}
+            </button>
+          ) : null}
+          {cantonAllocationState.result ? (
+            <dl className="data-list">
+              <DataRow label="Allocated party" value={cantonAllocationState.result.partyId} />
+              <DataRow
+                label="Allocation fingerprint"
+                value={cantonAllocationState.result.publicKeyFingerprint}
+              />
+            </dl>
+          ) : null}
           {cantonTopologyState.error ? <p className="error-text">{cantonTopologyState.error}</p> : null}
+          {cantonAllocationState.error ? <p className="error-text">{cantonAllocationState.error}</p> : null}
         </div>
 
         <div className="note note-card">

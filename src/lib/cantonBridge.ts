@@ -21,6 +21,13 @@ export type CantonPreparedTopology = {
   multiHash: string;
 };
 
+export type CantonAllocatedParty = {
+  partyId: string;
+  publicKeyFingerprint: string;
+  topologyTransactions: string[];
+  multiHash: string;
+};
+
 export function getCantonBridgeUrl(): string {
   const configuredUrl = import.meta.env.VITE_CANTON_BRIDGE_URL;
 
@@ -61,4 +68,29 @@ export async function prepareCantonExternalPartyTopology(input: {
   }
 
   return payload.topology;
+}
+
+export async function allocateCantonExternalParty(input: {
+  partyHint?: string;
+  publicKeyBase64: string;
+  signature: string;
+}): Promise<CantonAllocatedParty> {
+  const response = await fetch(`${getCantonBridgeUrl()}/v1/external-party/allocate`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  const payload = (await response.json()) as
+    | { allocation?: CantonAllocatedParty; error?: string; ok: false }
+    | { allocation: CantonAllocatedParty; ok: true };
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(
+      ("error" in payload && payload.error) || "Failed to allocate the Canton external party.",
+    );
+  }
+
+  return payload.allocation;
 }
