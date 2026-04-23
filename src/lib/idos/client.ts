@@ -14,7 +14,9 @@ export type IdosInspectorResult = {
   chainId: string;
   address: string;
   hasProfile: boolean;
+  generatedWalletPresent: boolean;
   user: IdosUser | null;
+  wallets: IdosWallet[];
 };
 
 export type ExistingWalletInspection = {
@@ -55,13 +57,21 @@ export async function inspectIdosSigner(
 
   const profileExists = await hasProfile(kwilClient, snapshot.idosAdapter.publicAddress);
   const user = profileExists ? await getUser(kwilClient, signer) : null;
+  const wallets = profileExists ? await getWallets(kwilClient, signer) : [];
+  const generatedWalletPresent = wallets.some(
+    (wallet) =>
+      wallet.address === snapshot.idosAdapter.publicAddress &&
+      wallet.wallet_type === snapshot.idosAdapter.walletType,
+  );
 
   return {
     nodeUrl,
     chainId: kwilClient.chainId,
     address: snapshot.idosAdapter.publicAddress,
     hasProfile: profileExists,
+    generatedWalletPresent,
     user,
+    wallets,
   };
 }
 

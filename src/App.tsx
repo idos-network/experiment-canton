@@ -20,6 +20,27 @@ function DataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function WalletSummaryList({
+  wallets,
+}: {
+  wallets: ExistingWalletInspection["wallets"] | IdosInspectorResult["wallets"];
+}) {
+  if (!wallets.length) {
+    return <p className="muted-text">No wallets returned.</p>;
+  }
+
+  return (
+    <ul className="wallet-list">
+      {wallets.map((wallet) => (
+        <li key={wallet.id}>
+          <span>{wallet.wallet_type}</span>
+          <code>{wallet.address}</code>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<SharedSignerSnapshot | null>(null);
   const [idosState, setIdosState] = useState<{
@@ -220,25 +241,30 @@ export default function App() {
 
         <div className="note note-card">
           <div className="panel-header">
-            <h2>idOS probe</h2>
+            <h2>Generated signer login</h2>
             <button className="button" type="button" onClick={handleInspectIdos} disabled={idosState.loading}>
-              {idosState.loading ? "Checking..." : "Check profile"}
+              {idosState.loading ? "Authenticating..." : "Authenticate generated signer"}
             </button>
           </div>
           <p>
-            This uses the same Ed25519 key as a Kwil custom signer with `ed25519` signatures and
-            checks whether idOS already knows the signer address.
+            This uses the generated Ed25519 key as a `NEAR` wallet signer and authenticates
+            directly against idOS using a browser-generated NEP-413 signature.
           </p>
           {idosState.result ? (
-            <dl className="data-list">
-              <DataRow label="Node URL" value={idosState.result.nodeUrl} />
-              <DataRow label="Chain ID" value={idosState.result.chainId} />
-              <DataRow label="Has profile" value={String(idosState.result.hasProfile)} />
-              <DataRow
-                label="User ID"
-                value={idosState.result.user?.id ?? "No idOS profile is linked to this signer yet."}
-              />
-            </dl>
+            <>
+              <dl className="data-list">
+                <DataRow label="Node URL" value={idosState.result.nodeUrl} />
+                <DataRow label="Chain ID" value={idosState.result.chainId} />
+                <DataRow label="Has profile" value={String(idosState.result.hasProfile)} />
+                <DataRow label="Wallet visible" value={String(idosState.result.generatedWalletPresent)} />
+                <DataRow
+                  label="User ID"
+                  value={idosState.result.user?.id ?? "No idOS profile is linked to this signer yet."}
+                />
+                <DataRow label="Wallet count" value={String(idosState.result.wallets.length)} />
+              </dl>
+              <WalletSummaryList wallets={idosState.result.wallets} />
+            </>
           ) : null}
           {idosState.error ? <p className="error-text">{idosState.error}</p> : null}
         </div>
@@ -281,12 +307,7 @@ export default function App() {
               />
             </dl>
           ) : null}
-          {existingWalletState.result?.user?.encryption_password_store === "mpc" ? (
-            <p className="warning-text">
-              This profile uses MPC. The prototype will add the wallet on the idOS side, but it
-              does not yet sync the wallet into the MPC secret-sharing layer.
-            </p>
-          ) : null}
+          {existingWalletState.result ? <WalletSummaryList wallets={existingWalletState.result.wallets} /> : null}
           {existingWalletState.result?.hasProfile ? (
             <button
               className="button"
