@@ -65,7 +65,14 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [x] Validate real external-party allocation against LocalNet
 - [x] Add a repeatable smoke script for the prepare-sign-allocate bridge flow
 
-## Milestone 6: Cleanup
+## Milestone 6: Post-allocation write
+
+- [x] Validate that a freshly allocated external party can prepare a self-ping
+- [x] Add bridge endpoints for interactive ping prepare/execute
+- [x] Extend the browser app to prepare, sign, and execute a self-ping
+- [x] Extend the smoke script to cover allocation plus ping execution
+
+## Milestone 7: Cleanup
 
 - [x] Document local setup and required env vars
 - [x] Document exact limits and known shortcuts in the PoC
@@ -74,7 +81,7 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 ## Open questions
 
 - [ ] Once LocalNet is working, do we still need a separate DevNet validation loop for the signer handoff?
-- [ ] What is the cleanest next Canton transaction after allocation: ping, tap, or another minimal ledger write?
+- [ ] Is `ping` enough as the Canton-side proof for this PoC, or do we also want a token/tap path?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
 ## Not doing now

@@ -21,6 +21,7 @@ Working today:
 - request prepared Canton external-party topology for the shared signer from the UI
 - sign the returned Canton `multiHash` in the browser and send it back for allocation
 - validate the same prepare-sign-allocate Canton flow against LocalNet from a repeatable smoke script
+- prepare, sign, and execute a real Canton self-ping after allocation
 
 ## Stack
 
@@ -120,6 +121,10 @@ Instead it expects a small local bridge process:
   Accepts a Canton public key and returns prepared external-party topology plus the `multiHash` that the browser signer should sign
 - `POST /v1/external-party/allocate`
   Accepts the same public key plus the browser-produced signature and submits the allocation request
+- `POST /v1/ping/prepare`
+  Prepares a Ping create transaction for an allocated party and returns the transaction hash to sign
+- `POST /v1/ping/execute`
+  Accepts the prepared ping response plus the browser-produced signature and submits the transaction
 
 For LocalNet specifically, run the bridge with:
 
@@ -143,7 +148,7 @@ There is an `.env.example` file with the supported variables.
 - `pnpm canton:localnet:download`
 - `CANTON_LOCALNET_DRY_RUN=1 pnpm canton:localnet:up`
 - `pnpm canton:bridge` plus `GET /healthz`
-- `pnpm canton:bridge:smoke` against a running LocalNet bridge
+- `pnpm canton:bridge:smoke` against a running LocalNet bridge, including self-ping execution
 - direct reachability checks against `https://nodes.idos.network`
 - local NEP-413 packing and verification sanity checks
 - browser validation with a real idOS profile
@@ -151,8 +156,7 @@ There is an `.env.example` file with the supported variables.
 ## Known limits
 
 - No Daml code
-- No validated Canton post-allocation ledger write yet
-- No Canton token transfer or ping submission path yet
+- No validated Canton token/tap path yet
 - DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - No MPC-specific wallet sync work
 - The generated key is stored in browser `localStorage`
@@ -160,6 +164,6 @@ There is an `.env.example` file with the supported variables.
 
 ## Next likely steps
 
-- add a real post-allocation transaction flow such as ping or tap
+- decide whether to stop at ping or add a token/tap flow too
 - decide whether a DevNet-specific validation loop is still needed after LocalNet works
 - reduce bundle size by moving more Canton-specific code out of the browser path

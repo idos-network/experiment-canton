@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 
 import {
   allocateCantonExternalParty,
+  executeCantonPing,
   getCantonBridgeUrl,
+  prepareCantonPing,
   prepareCantonExternalPartyTopology,
   probeCantonBridge,
   type CantonAllocatedParty,
   type CantonBridgeHealth,
+  type CantonExecutedPing,
+  type CantonPreparedPing,
   type CantonPreparedTopology,
 } from "./lib/cantonBridge";
 import { connectEvmWallet } from "./lib/idos/evm";
@@ -80,6 +84,25 @@ export default function App() {
     error: string | null;
     loading: boolean;
     result: CantonAllocatedParty | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
+  const [cantonPingState, setCantonPingState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: CantonPreparedPing | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
+  const [cantonPingSignature, setCantonPingSignature] = useState<string | null>(null);
+  const [cantonPingExecutionState, setCantonPingExecutionState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: CantonExecutedPing | null;
   }>({
     error: null,
     loading: false,
@@ -203,6 +226,17 @@ export default function App() {
         loading: false,
         result: null,
       });
+      setCantonPingState({
+        error: null,
+        loading: false,
+        result: null,
+      });
+      setCantonPingSignature(null);
+      setCantonPingExecutionState({
+        error: null,
+        loading: false,
+        result: null,
+      });
     } catch (error) {
       setCantonTopologyState({
         error:
@@ -224,6 +258,17 @@ export default function App() {
       signCantonTransactionHash(snapshot.privateKeyBase64, cantonTopologyState.result.multiHash),
     );
     setCantonAllocationState({
+      error: null,
+      loading: false,
+      result: null,
+    });
+    setCantonPingState({
+      error: null,
+      loading: false,
+      result: null,
+    });
+    setCantonPingSignature(null);
+    setCantonPingExecutionState({
       error: null,
       loading: false,
       result: null,
@@ -253,10 +298,109 @@ export default function App() {
         loading: false,
         result,
       });
+      setCantonPingState({
+        error: null,
+        loading: false,
+        result: null,
+      });
+      setCantonPingSignature(null);
+      setCantonPingExecutionState({
+        error: null,
+        loading: false,
+        result: null,
+      });
     } catch (error) {
       setCantonAllocationState({
         error:
           error instanceof Error ? error.message : "Failed to allocate the Canton external party.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
+
+  async function handlePrepareCantonPing() {
+    if (!cantonAllocationState.result) {
+      return;
+    }
+
+    setCantonPingState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+
+    try {
+      const result = await prepareCantonPing({
+        partyId: cantonAllocationState.result.partyId,
+      });
+
+      setCantonPingState({
+        error: null,
+        loading: false,
+        result,
+      });
+      setCantonPingSignature(null);
+      setCantonPingExecutionState({
+        error: null,
+        loading: false,
+        result: null,
+      });
+    } catch (error) {
+      setCantonPingState({
+        error: error instanceof Error ? error.message : "Failed to prepare Canton ping.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
+
+  function handleSignPreparedPing() {
+    if (!snapshot || !cantonPingState.result) {
+      return;
+    }
+
+    setCantonPingSignature(
+      signCantonTransactionHash(
+        snapshot.privateKeyBase64,
+        cantonPingState.result.response.preparedTransactionHash,
+      ),
+    );
+    setCantonPingExecutionState({
+      error: null,
+      loading: false,
+      result: null,
+    });
+  }
+
+  async function handleExecuteCantonPing() {
+    if (!cantonPingState.result || !cantonPingSignature) {
+      return;
+    }
+
+    setCantonPingExecutionState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+
+    try {
+      const result = await executeCantonPing({
+        partyId: cantonPingState.result.partyId,
+        responderPartyId: cantonPingState.result.responderPartyId,
+        pingId: cantonPingState.result.pingId,
+        response: cantonPingState.result.response,
+        signature: cantonPingSignature,
+      });
+
+      setCantonPingExecutionState({
+        error: null,
+        loading: false,
+        result,
+      });
+    } catch (error) {
+      setCantonPingExecutionState({
+        error: error instanceof Error ? error.message : "Failed to execute Canton ping.",
         loading: false,
         result: null,
       });
@@ -510,8 +654,60 @@ export default function App() {
               />
             </dl>
           ) : null}
+          {cantonAllocationState.result ? (
+            <button
+              className="button"
+              type="button"
+              onClick={handlePrepareCantonPing}
+              disabled={cantonPingState.loading}
+            >
+              {cantonPingState.loading ? "Preparing ping..." : "Prepare self ping"}
+            </button>
+          ) : null}
+          {cantonPingState.result ? (
+            <dl className="data-list">
+              <DataRow label="Ping ID" value={cantonPingState.result.pingId} />
+              <DataRow label="Ping initiator" value={cantonPingState.result.partyId} />
+              <DataRow label="Ping responder" value={cantonPingState.result.responderPartyId} />
+              <DataRow
+                label="Ping tx hash"
+                value={cantonPingState.result.response.preparedTransactionHash}
+              />
+            </dl>
+          ) : null}
+          {cantonPingState.result ? (
+            <button className="button" type="button" onClick={handleSignPreparedPing}>
+              Sign ping hash
+            </button>
+          ) : null}
+          {cantonPingSignature ? (
+            <dl className="data-list">
+              <DataRow label="Ping signature" value={cantonPingSignature} />
+            </dl>
+          ) : null}
+          {cantonPingSignature ? (
+            <button
+              className="button"
+              type="button"
+              onClick={handleExecuteCantonPing}
+              disabled={cantonPingExecutionState.loading}
+            >
+              {cantonPingExecutionState.loading ? "Executing ping..." : "Execute ping"}
+            </button>
+          ) : null}
+          {cantonPingExecutionState.result ? (
+            <dl className="data-list">
+              <DataRow label="Ping update ID" value={cantonPingExecutionState.result.updateId} />
+              <DataRow
+                label="Completion offset"
+                value={String(cantonPingExecutionState.result.completionOffset)}
+              />
+            </dl>
+          ) : null}
           {cantonTopologyState.error ? <p className="error-text">{cantonTopologyState.error}</p> : null}
           {cantonAllocationState.error ? <p className="error-text">{cantonAllocationState.error}</p> : null}
+          {cantonPingState.error ? <p className="error-text">{cantonPingState.error}</p> : null}
+          {cantonPingExecutionState.error ? <p className="error-text">{cantonPingExecutionState.error}</p> : null}
         </div>
 
         <div className="note note-card">

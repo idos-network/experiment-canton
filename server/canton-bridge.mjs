@@ -252,6 +252,116 @@ async function handleAllocateParty(request, response) {
   });
 }
 
+async function handlePreparePing(request, response) {
+  const config = loadBridgeConfig();
+
+  if (!config.configured) {
+    writeJson(response, 400, {
+      ok: false,
+      error: "Canton bridge is not configured.",
+      missingFields: config.missingFields,
+    });
+    return;
+  }
+
+  const payload = await readRequestBody(request);
+  const body =
+    payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  const partyId = typeof body.partyId === "string" ? body.partyId.trim() : "";
+  const responderPartyId =
+    typeof body.responderPartyId === "string" && body.responderPartyId.trim()
+      ? body.responderPartyId.trim()
+      : partyId;
+  const pingId =
+    typeof body.pingId === "string" && body.pingId.trim()
+      ? body.pingId.trim()
+      : `ping-${Date.now()}`;
+
+  if (!partyId) {
+    writeJson(response, 400, {
+      ok: false,
+      error: "`partyId` is required.",
+    });
+    return;
+  }
+
+  const sdk = await getSdk(config);
+  const commands = sdk.utils.ping.create([
+    {
+      id: pingId,
+      initiator: partyId,
+      responder: responderPartyId,
+    },
+  ]);
+  const prepared = sdk.ledger.prepare({
+    partyId,
+    commands,
+  });
+  const preparedJson = await prepared.toJSON();
+
+  writeJson(response, 200, {
+    ok: true,
+    ping: {
+      partyId,
+      responderPartyId,
+      pingId,
+      response: preparedJson.response,
+    },
+  });
+}
+
+async function handleExecutePing(request, response) {
+  const config = loadBridgeConfig();
+
+  if (!config.configured) {
+    writeJson(response, 400, {
+      ok: false,
+      error: "Canton bridge is not configured.",
+      missingFields: config.missingFields,
+    });
+    return;
+  }
+
+  const payload = await readRequestBody(request);
+  const body =
+    payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  const partyId = typeof body.partyId === "string" ? body.partyId.trim() : "";
+  const responderPartyId =
+    typeof body.responderPartyId === "string" && body.responderPartyId.trim()
+      ? body.responderPartyId.trim()
+      : partyId;
+  const pingId = typeof body.pingId === "string" ? body.pingId.trim() : "";
+  const signature = typeof body.signature === "string" ? body.signature.trim() : "";
+  const prepareResponse =
+    body.response && typeof body.response === "object" && !Array.isArray(body.response)
+      ? body.response
+      : null;
+
+  if (!partyId || !pingId || !signature || !prepareResponse) {
+    writeJson(response, 400, {
+      ok: false,
+      error: "`partyId`, `pingId`, `response`, and `signature` are required.",
+    });
+    return;
+  }
+
+  const sdk = await getSdk(config);
+  const signed = sdk.ledger.fromSignature(prepareResponse, signature);
+  const executed = await sdk.ledger.execute(signed, { partyId });
+
+  writeJson(response, 200, {
+    ok: true,
+    execution: {
+      partyId,
+      responderPartyId,
+      pingId,
+      preparedTransactionHash: prepareResponse.preparedTransactionHash,
+      updateId: executed.updateId,
+      completionOffset: executed.completionOffset,
+    },
+  });
+}
+
 const server = createServer(async (request, response) => {
   const method = request.method ?? "GET";
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
@@ -274,6 +384,16 @@ const server = createServer(async (request, response) => {
 
     if (method === "POST" && url.pathname === "/v1/external-party/allocate") {
       await handleAllocateParty(request, response);
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/ping/prepare") {
+      await handlePreparePing(request, response);
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/ping/execute") {
+      await handleExecutePing(request, response);
       return;
     }
 

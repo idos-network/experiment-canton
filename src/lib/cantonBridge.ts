@@ -28,6 +28,35 @@ export type CantonAllocatedParty = {
   multiHash: string;
 };
 
+export type CantonPreparedLedgerResponse = {
+  preparedTransaction: string;
+  preparedTransactionHash: string;
+  hashingSchemeVersion: string;
+  hashingDetails?: string | null;
+  costEstimation?: {
+    estimationTimestamp: string;
+    confirmationRequestTrafficCostEstimation: number;
+    confirmationResponseTrafficCostEstimation: number;
+    totalTrafficCostEstimation: number;
+  } | null;
+};
+
+export type CantonPreparedPing = {
+  partyId: string;
+  responderPartyId: string;
+  pingId: string;
+  response: CantonPreparedLedgerResponse;
+};
+
+export type CantonExecutedPing = {
+  partyId: string;
+  responderPartyId: string;
+  pingId: string;
+  preparedTransactionHash: string;
+  updateId: string;
+  completionOffset: number;
+};
+
 export function getCantonBridgeUrl(): string {
   const configuredUrl = import.meta.env.VITE_CANTON_BRIDGE_URL;
 
@@ -93,4 +122,52 @@ export async function allocateCantonExternalParty(input: {
   }
 
   return payload.allocation;
+}
+
+export async function prepareCantonPing(input: {
+  partyId: string;
+  responderPartyId?: string;
+  pingId?: string;
+}): Promise<CantonPreparedPing> {
+  const response = await fetch(`${getCantonBridgeUrl()}/v1/ping/prepare`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  const payload = (await response.json()) as
+    | { error?: string; ok: false }
+    | { ok: true; ping: CantonPreparedPing };
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(("error" in payload && payload.error) || "Failed to prepare Canton ping.");
+  }
+
+  return payload.ping;
+}
+
+export async function executeCantonPing(input: {
+  partyId: string;
+  responderPartyId?: string;
+  pingId: string;
+  response: CantonPreparedLedgerResponse;
+  signature: string;
+}): Promise<CantonExecutedPing> {
+  const response = await fetch(`${getCantonBridgeUrl()}/v1/ping/execute`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  const payload = (await response.json()) as
+    | { error?: string; ok: false }
+    | { ok: true; execution: CantonExecutedPing };
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(("error" in payload && payload.error) || "Failed to execute Canton ping.");
+  }
+
+  return payload.execution;
 }

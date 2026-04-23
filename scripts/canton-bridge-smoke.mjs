@@ -38,6 +38,20 @@ const allocation = await postJson("/v1/external-party/allocate", {
   signature,
 });
 
+const ping = await postJson("/v1/ping/prepare", {
+  partyId: allocation.allocation.partyId,
+});
+
+const pingSignature = signTransactionHash(ping.ping.response.preparedTransactionHash, privateKeyBase64);
+
+const pingExecution = await postJson("/v1/ping/execute", {
+  partyId: allocation.allocation.partyId,
+  responderPartyId: ping.ping.responderPartyId,
+  pingId: ping.ping.pingId,
+  response: ping.ping.response,
+  signature: pingSignature,
+});
+
 console.log(
   JSON.stringify(
     {
@@ -46,6 +60,8 @@ console.log(
       publicKeyBase64,
       topology: topology.topology,
       allocation: allocation.allocation,
+      ping: ping.ping,
+      pingExecution: pingExecution.execution,
     },
     null,
     2,
