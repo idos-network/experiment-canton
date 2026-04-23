@@ -76,18 +76,19 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 
 - [x] Document local setup and required env vars
 - [x] Document exact limits and known shortcuts in the PoC
+- [x] Trim the UI to a single-path demo centered on the crypto handoff
 - [ ] Capture follow-up work for productionizing the approach
 
 ## Open questions
 
 - [ ] Once LocalNet is working, do we still need a separate DevNet validation loop for the signer handoff?
-- [ ] Is `ping` enough as the Canton-side proof for this PoC, or do we also want a token/tap path?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
+- [ ] What is the first AG-shaped flow that should consume this shared signer proof?
 
 ## Not doing now
 
 - [ ] Daml models or contracts
 - [ ] Canton account abstraction
 - [ ] Production key isolation
-- [ ] Full UX polish
+- [ ] More Canton feature surface beyond the signer proof
 - [ ] Browser-wallet-specific Canton integration

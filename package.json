@@ -1,7 +1,7 @@
 {
   "name": "experiment-canton",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "canton:bridge": "node server/canton-bridge.mjs",

@@ -7,21 +7,24 @@ PoC for sharing a single Ed25519 signer between:
 
 The current repo avoids Daml and Canton account abstraction on purpose. The focus is signer reuse.
 
+The current UI is intentionally slimmed down around one statement:
+
+> One Ed25519 key can authenticate to idOS and sign for a Canton external party.
+
 ## Current status
 
 Working today:
 
 - generate and persist one browser-local Ed25519 keypair
 - derive a Canton signing key view from that keypair
-- sign and verify a Canton-style transaction hash roundtrip
 - derive a `NEAR` wallet view for idOS from that same keypair
 - link that generated signer to an existing idOS profile
 - authenticate to idOS using the generated signer after linking
-- probe a local Canton bridge that is meant to talk to a validator-backed external-party flow
-- request prepared Canton external-party topology for the shared signer from the UI
+- prepare Canton external-party topology for the shared signer from the UI
 - sign the returned Canton `multiHash` in the browser and send it back for allocation
-- validate the same prepare-sign-allocate Canton flow against LocalNet from a repeatable smoke script
+- allocate a real Canton external party on LocalNet
 - prepare, sign, and execute a real Canton self-ping after allocation
+- show both systems in one browser flow with raw artifacts hidden behind details panels
 
 ## Stack
 
@@ -45,7 +48,8 @@ In a second terminal, start the local Canton bridge:
 pnpm canton:bridge
 ```
 
-Then open the local Vite URL in a browser with an injected EVM wallet.
+Then open the local Vite URL in a browser. You only need an injected EVM wallet if the shared key
+has not been linked to idOS yet.
 
 ## LocalNet bootstrap
 
@@ -69,19 +73,21 @@ Notes:
 
 The wrapper script lives at [scripts/canton-localnet.sh](scripts/canton-localnet.sh).
 
-## Happy path
+## Demo flow
 
 1. Open the app.
 2. Let it create or load the shared signer from browser storage.
-3. Connect an existing EVM wallet that already has an idOS profile.
-4. Click `Link generated signer as NEAR wallet`.
-5. After linking succeeds, click `Authenticate generated signer`.
+3. If the key is not linked to idOS yet, expand `Bootstrap idOS link` and:
+   - connect an existing EVM wallet with an idOS profile
+   - click `Link generated key to idOS`
+4. Click `Run crypto demo`.
 
 Expected result:
 
-- the generated signer shows `Has profile: true`
-- the generated signer shows `Wallet visible: true`
-- the idOS user id resolves through the generated signer session
+- the summary header shows `idOS authenticated`
+- the summary header shows `Canton ping executed`
+- the app shows the idOS user id reached by the shared key
+- the app shows the Canton party id and ping update id reached by that same key
 
 ## Important implementation detail
 
@@ -108,7 +114,7 @@ The proof used for idOS is a browser-generated NEP-413 signature. This kept the 
 - [src/lib/idos/client.ts](src/lib/idos/client.ts)
   Thin idOS-specific client logic for profile inspection and wallet linking
 - [src/App.tsx](src/App.tsx)
-  Demo UI and browser flow
+  Slim one-button demo plus bootstrap/details panels
 
 ## Canton bridge
 
@@ -156,7 +162,6 @@ There is an `.env.example` file with the supported variables.
 ## Known limits
 
 - No Daml code
-- No validated Canton token/tap path yet
 - DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - No MPC-specific wallet sync work
 - The generated key is stored in browser `localStorage`
@@ -164,6 +169,7 @@ There is an `.env.example` file with the supported variables.
 
 ## Next likely steps
 
-- decide whether to stop at ping or add a token/tap flow too
 - decide whether a DevNet-specific validation loop is still needed after LocalNet works
+- capture and export a concise proof bundle from the demo run
+- decide how AG-oriented flows should consume this shared signer proof
 - reduce bundle size by moving more Canton-specific code out of the browser path

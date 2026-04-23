@@ -4,8 +4,8 @@ import {
   allocateCantonExternalParty,
   executeCantonPing,
   getCantonBridgeUrl,
-  prepareCantonPing,
   prepareCantonExternalPartyTopology,
+  prepareCantonPing,
   probeCantonBridge,
   type CantonAllocatedParty,
   type CantonBridgeHealth,
@@ -37,6 +37,16 @@ function DataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatusPill({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "idle" | "ready" | "live";
+}) {
+  return <span className={`status-pill status-pill-${tone}`}>{label}</span>;
+}
+
 function WalletSummaryList({
   wallets,
 }: {
@@ -58,94 +68,102 @@ function WalletSummaryList({
   );
 }
 
+function shortenValue(value: string, head = 18, tail = 12): string {
+  if (value.length <= head + tail + 3) {
+    return value;
+  }
+
+  return `${value.slice(0, head)}...${value.slice(-tail)}`;
+}
+
+type AsyncState<T> = {
+  error: string | null;
+  loading: boolean;
+  result: T | null;
+};
+
+function createAsyncState<T>(): AsyncState<T> {
+  return {
+    error: null,
+    loading: false,
+    result: null,
+  };
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<SharedSignerSnapshot | null>(null);
-  const [partyHint, setPartyHint] = useState("idos-shared-signer");
-  const [cantonBridgeState, setCantonBridgeState] = useState<{
+  const [partyHint, setPartyHint] = useState<string | null>(null);
+  const [demoState, setDemoState] = useState<{
     error: string | null;
     loading: boolean;
-    result: CantonBridgeHealth | null;
+    lastCompletedAt: string | null;
   }>({
     error: null,
     loading: false,
-    result: null,
+    lastCompletedAt: null,
   });
-  const [cantonTopologyState, setCantonTopologyState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: CantonPreparedTopology | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
+  const [cantonBridgeState, setCantonBridgeState] = useState<AsyncState<CantonBridgeHealth>>(
+    createAsyncState(),
+  );
+  const [idosState, setIdosState] = useState<AsyncState<IdosInspectorResult>>(createAsyncState());
+  const [cantonTopologyState, setCantonTopologyState] = useState<
+    AsyncState<CantonPreparedTopology>
+  >(createAsyncState());
   const [cantonSignature, setCantonSignature] = useState<string | null>(null);
-  const [cantonAllocationState, setCantonAllocationState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: CantonAllocatedParty | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
-  const [cantonPingState, setCantonPingState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: CantonPreparedPing | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
+  const [cantonAllocationState, setCantonAllocationState] = useState<
+    AsyncState<CantonAllocatedParty>
+  >(createAsyncState());
+  const [cantonPingState, setCantonPingState] = useState<AsyncState<CantonPreparedPing>>(
+    createAsyncState(),
+  );
   const [cantonPingSignature, setCantonPingSignature] = useState<string | null>(null);
-  const [cantonPingExecutionState, setCantonPingExecutionState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: CantonExecutedPing | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
-  const [idosState, setIdosState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: IdosInspectorResult | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
+  const [cantonPingExecutionState, setCantonPingExecutionState] = useState(
+    createAsyncState<CantonExecutedPing>(),
+  );
   const [connectedWallet, setConnectedWallet] = useState<{
     address: string;
     signer: Awaited<ReturnType<typeof connectEvmWallet>>["signer"];
   } | null>(null);
-  const [existingWalletState, setExistingWalletState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: ExistingWalletInspection | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
-  const [linkState, setLinkState] = useState<{
-    error: string | null;
-    loading: boolean;
-    result: LinkGeneratedSignerResult | null;
-  }>({
-    error: null,
-    loading: false,
-    result: null,
-  });
+  const [existingWalletState, setExistingWalletState] = useState<
+    AsyncState<ExistingWalletInspection>
+  >(createAsyncState());
+  const [linkState, setLinkState] = useState<AsyncState<LinkGeneratedSignerResult>>(
+    createAsyncState(),
+  );
+
+  const bridgeReady = Boolean(cantonBridgeState.result?.configured && !cantonBridgeState.error);
+  const idosReady = Boolean(
+    idosState.result?.hasProfile && idosState.result.generatedWalletPresent,
+  );
+  const cantonReady = Boolean(cantonPingExecutionState.result);
+  const demoReady = idosReady && cantonReady;
 
   useEffect(() => {
     loadOrCreateSharedSigner().then(setSnapshot);
-    handleProbeCantonBridge();
+    void handleProbeCantonBridge();
   }, []);
 
-  async function handleProbeCantonBridge() {
+  function resetCantonState() {
+    setPartyHint(null);
+    setCantonTopologyState(createAsyncState());
+    setCantonSignature(null);
+    setCantonAllocationState(createAsyncState());
+    setCantonPingState(createAsyncState());
+    setCantonPingSignature(null);
+    setCantonPingExecutionState(createAsyncState());
+  }
+
+  function resetDemoState() {
+    setDemoState({
+      error: null,
+      loading: false,
+      lastCompletedAt: null,
+    });
+    setIdosState(createAsyncState());
+    resetCantonState();
+  }
+
+  async function handleProbeCantonBridge(): Promise<CantonBridgeHealth> {
     setCantonBridgeState({
       error: null,
       loading: true,
@@ -160,251 +178,137 @@ export default function App() {
         loading: false,
         result,
       });
+
+      return result;
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to reach the local Canton bridge.";
+
       setCantonBridgeState({
-        error:
-          error instanceof Error ? error.message : "Failed to reach the local Canton bridge.",
+        error: message,
         loading: false,
         result: null,
       });
+
+      throw new Error(message);
     }
   }
 
-  async function handleInspectIdos() {
+  async function handleRunDemo() {
     if (!snapshot) {
       return;
     }
 
-    setIdosState({
+    const nextPartyHint = `idos-shared-${Date.now()}`;
+
+    setDemoState({
       error: null,
       loading: true,
-      result: null,
+      lastCompletedAt: null,
     });
+    resetCantonState();
+    setPartyHint(nextPartyHint);
 
     try {
-      const result = await inspectIdosSigner(snapshot);
+      const bridge = await handleProbeCantonBridge();
+
+      if (!bridge.configured) {
+        throw new Error("Start the Canton bridge before running the demo.");
+      }
 
       setIdosState({
         error: null,
-        loading: false,
-        result,
+        loading: true,
+        result: null,
       });
-    } catch (error) {
+
+      const idosResult = await inspectIdosSigner(snapshot);
       setIdosState({
-        error: error instanceof Error ? error.message : "Failed to inspect idOS signer.",
+        error: null,
         loading: false,
-        result: null,
+        result: idosResult,
       });
-    }
-  }
 
-  async function handlePrepareCantonTopology() {
-    if (!snapshot) {
-      return;
-    }
+      if (!idosResult.hasProfile || !idosResult.generatedWalletPresent) {
+        throw new Error("The shared key is not linked to idOS yet. Use the bootstrap section.");
+      }
 
-    setCantonTopologyState({
-      error: null,
-      loading: true,
-      result: null,
-    });
-
-    try {
-      const result = await prepareCantonExternalPartyTopology({
-        partyHint,
+      const topology = await prepareCantonExternalPartyTopology({
+        partyHint: nextPartyHint,
         publicKeyBase64: snapshot.cantonPublicKeyBase64,
       });
-
       setCantonTopologyState({
         error: null,
         loading: false,
-        result,
-      });
-      setCantonSignature(null);
-      setCantonAllocationState({
-        error: null,
-        loading: false,
-        result: null,
-      });
-      setCantonPingState({
-        error: null,
-        loading: false,
-        result: null,
-      });
-      setCantonPingSignature(null);
-      setCantonPingExecutionState({
-        error: null,
-        loading: false,
-        result: null,
-      });
-    } catch (error) {
-      setCantonTopologyState({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to prepare Canton external-party topology.",
-        loading: false,
-        result: null,
-      });
-    }
-  }
-
-  function handleSignPreparedTopology() {
-    if (!snapshot || !cantonTopologyState.result) {
-      return;
-    }
-
-    setCantonSignature(
-      signCantonTransactionHash(snapshot.privateKeyBase64, cantonTopologyState.result.multiHash),
-    );
-    setCantonAllocationState({
-      error: null,
-      loading: false,
-      result: null,
-    });
-    setCantonPingState({
-      error: null,
-      loading: false,
-      result: null,
-    });
-    setCantonPingSignature(null);
-    setCantonPingExecutionState({
-      error: null,
-      loading: false,
-      result: null,
-    });
-  }
-
-  async function handleAllocateCantonParty() {
-    if (!snapshot || !cantonTopologyState.result || !cantonSignature) {
-      return;
-    }
-
-    setCantonAllocationState({
-      error: null,
-      loading: true,
-      result: null,
-    });
-
-    try {
-      const result = await allocateCantonExternalParty({
-        partyHint,
-        publicKeyBase64: snapshot.cantonPublicKeyBase64,
-        signature: cantonSignature,
+        result: topology,
       });
 
-      setCantonAllocationState({
-        error: null,
-        loading: false,
-        result,
-      });
-      setCantonPingState({
-        error: null,
-        loading: false,
-        result: null,
-      });
-      setCantonPingSignature(null);
-      setCantonPingExecutionState({
-        error: null,
-        loading: false,
-        result: null,
-      });
-    } catch (error) {
-      setCantonAllocationState({
-        error:
-          error instanceof Error ? error.message : "Failed to allocate the Canton external party.",
-        loading: false,
-        result: null,
-      });
-    }
-  }
-
-  async function handlePrepareCantonPing() {
-    if (!cantonAllocationState.result) {
-      return;
-    }
-
-    setCantonPingState({
-      error: null,
-      loading: true,
-      result: null,
-    });
-
-    try {
-      const result = await prepareCantonPing({
-        partyId: cantonAllocationState.result.partyId,
-      });
-
-      setCantonPingState({
-        error: null,
-        loading: false,
-        result,
-      });
-      setCantonPingSignature(null);
-      setCantonPingExecutionState({
-        error: null,
-        loading: false,
-        result: null,
-      });
-    } catch (error) {
-      setCantonPingState({
-        error: error instanceof Error ? error.message : "Failed to prepare Canton ping.",
-        loading: false,
-        result: null,
-      });
-    }
-  }
-
-  function handleSignPreparedPing() {
-    if (!snapshot || !cantonPingState.result) {
-      return;
-    }
-
-    setCantonPingSignature(
-      signCantonTransactionHash(
+      const topologySignature = signCantonTransactionHash(
         snapshot.privateKeyBase64,
-        cantonPingState.result.response.preparedTransactionHash,
-      ),
-    );
-    setCantonPingExecutionState({
-      error: null,
-      loading: false,
-      result: null,
-    });
-  }
+        topology.multiHash,
+      );
+      setCantonSignature(topologySignature);
 
-  async function handleExecuteCantonPing() {
-    if (!cantonPingState.result || !cantonPingSignature) {
-      return;
-    }
-
-    setCantonPingExecutionState({
-      error: null,
-      loading: true,
-      result: null,
-    });
-
-    try {
-      const result = await executeCantonPing({
-        partyId: cantonPingState.result.partyId,
-        responderPartyId: cantonPingState.result.responderPartyId,
-        pingId: cantonPingState.result.pingId,
-        response: cantonPingState.result.response,
-        signature: cantonPingSignature,
+      const allocation = await allocateCantonExternalParty({
+        partyHint: nextPartyHint,
+        publicKeyBase64: snapshot.cantonPublicKeyBase64,
+        signature: topologySignature,
+      });
+      setCantonAllocationState({
+        error: null,
+        loading: false,
+        result: allocation,
       });
 
+      const ping = await prepareCantonPing({
+        partyId: allocation.partyId,
+      });
+      setCantonPingState({
+        error: null,
+        loading: false,
+        result: ping,
+      });
+
+      const pingSignature = signCantonTransactionHash(
+        snapshot.privateKeyBase64,
+        ping.response.preparedTransactionHash,
+      );
+      setCantonPingSignature(pingSignature);
+
+      const pingExecution = await executeCantonPing({
+        partyId: ping.partyId,
+        responderPartyId: ping.responderPartyId,
+        pingId: ping.pingId,
+        response: ping.response,
+        signature: pingSignature,
+      });
       setCantonPingExecutionState({
         error: null,
         loading: false,
-        result,
+        result: pingExecution,
+      });
+
+      setDemoState({
+        error: null,
+        loading: false,
+        lastCompletedAt: new Date().toISOString(),
       });
     } catch (error) {
-      setCantonPingExecutionState({
-        error: error instanceof Error ? error.message : "Failed to execute Canton ping.",
+      setDemoState({
+        error: error instanceof Error ? error.message : "The demo run failed.",
         loading: false,
-        result: null,
+        lastCompletedAt: null,
       });
     }
+  }
+
+  async function handleRegenerateSigner() {
+    setSnapshot(null);
+    resetDemoState();
+    setConnectedWallet(null);
+    setExistingWalletState(createAsyncState());
+    setLinkState(createAsyncState());
+    setSnapshot(await loadOrCreateSharedSigner(true));
   }
 
   async function handleConnectExistingWallet() {
@@ -417,11 +321,7 @@ export default function App() {
       loading: true,
       result: null,
     });
-    setLinkState({
-      error: null,
-      loading: false,
-      result: null,
-    });
+    setLinkState(createAsyncState());
 
     try {
       const wallet = await connectEvmWallet();
@@ -475,6 +375,10 @@ export default function App() {
         loading: false,
         result: await inspectIdosSigner(snapshot),
       });
+      setDemoState((current) => ({
+        ...current,
+        error: null,
+      }));
     } catch (error) {
       setLinkState({
         error: error instanceof Error ? error.message : "Failed to link the generated wallet.",
@@ -489,8 +393,8 @@ export default function App() {
       <main className="app-shell">
         <section className="hero">
           <p className="eyebrow">Canton x idOS</p>
-          <h1>Shared signer experiment</h1>
-          <p className="lede">Loading the generated signer...</p>
+          <h1>One key. Two systems.</h1>
+          <p className="lede">Loading the shared signer...</p>
         </section>
       </main>
     );
@@ -498,307 +402,260 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <section className="hero">
+      <section className="hero hero-compact">
         <p className="eyebrow">Canton x idOS</p>
-        <h1>Shared signer experiment</h1>
+        <h1>One key. Two systems.</h1>
         <p className="lede">
-          This app will prove that one Ed25519 signer can be reused across Canton external-party
-          flows and idOS authentication flows.
+          This demo uses a single Ed25519 key to authenticate to idOS and to sign for a Canton
+          external party that executes a real LocalNet ping transaction.
         </p>
+        <div className="hero-actions">
+          <button className="button" type="button" onClick={handleRunDemo} disabled={demoState.loading}>
+            {demoState.loading ? "Running demo..." : "Run crypto demo"}
+          </button>
+          <button className="button button-subtle" type="button" onClick={handleRegenerateSigner}>
+            Regenerate key
+          </button>
+        </div>
+        <div className="status-row">
+          <StatusPill label={bridgeReady ? "Canton bridge ready" : "Canton bridge idle"} tone={bridgeReady ? "ready" : "idle"} />
+          <StatusPill label={idosReady ? "idOS authenticated" : "idOS not linked"} tone={idosReady ? "ready" : "idle"} />
+          <StatusPill label={cantonReady ? "Canton ping executed" : "No Canton write yet"} tone={cantonReady ? "live" : "idle"} />
+        </div>
+        {demoReady ? (
+          <p className="hero-proof">
+            Ready. The shared key authenticated to idOS user{" "}
+            <code>{idosState.result?.user?.id ?? "unknown"}</code> and executed Canton update{" "}
+            <code>{shortenValue(cantonPingExecutionState.result?.updateId ?? "")}</code>.
+          </p>
+        ) : null}
+        {demoState.lastCompletedAt ? (
+          <p className="muted-text">Last completed: {demoState.lastCompletedAt}</p>
+        ) : null}
+        {demoState.error ? <p className="error-text">{demoState.error}</p> : null}
       </section>
 
-      <section className="panel panel-grid">
-        <div>
-          <div className="panel-header">
-            <h2>Shared signer</h2>
-            <button
-              className="button"
-              type="button"
-              onClick={() => {
-                loadOrCreateSharedSigner(true).then(setSnapshot);
-              }}
-            >
-              Regenerate
-            </button>
-          </div>
+      <section className="panel summary-grid">
+        <article className="metric-card">
+          <h2>Key identity</h2>
+          <p>The same raw Ed25519 key is derived into idOS and Canton signer views.</p>
           <dl className="data-list">
-            <DataRow label="Canton public key" value={snapshot.cantonPublicKeyBase64} />
-            <DataRow label="idOS public key" value={snapshot.ed25519PublicKeyHex} />
-            <DataRow label="idOS wallet type" value={snapshot.idosAdapter.walletType} />
-            <DataRow label="idOS address" value={snapshot.idosAdapter.publicAddress} />
+            <DataRow label="Ed25519 public key" value={shortenValue(snapshot.ed25519PublicKeyHex)} />
+            <DataRow label="idOS NEAR address" value={shortenValue(snapshot.idosAdapter.publicAddress)} />
+            <DataRow label="idOS public key" value={shortenValue(snapshot.idosAdapter.publicKey)} />
+            <DataRow label="Canton public key" value={shortenValue(snapshot.cantonPublicKeyBase64)} />
           </dl>
-        </div>
+        </article>
 
-        <div>
-          <h2>Canton signing proof</h2>
-          <dl className="data-list">
-            <DataRow label="Sample Canton hash (hex)" value={snapshot.sample.cantonHashHex} />
-            <DataRow label="Canton tx hash (base64)" value={snapshot.sample.cantonHashBase64} />
-            <DataRow label="Canton signature" value={snapshot.sample.cantonSignatureBase64} />
-            <DataRow
-              label="Signature verified"
-              value={String(snapshot.sample.cantonSignatureVerified)}
-            />
-            <DataRow label="idOS message" value={snapshot.sample.idosMessage} />
-            <DataRow label="idOS signature" value={snapshot.sample.idosSignatureHex} />
-          </dl>
-        </div>
-
-        <div className="note note-card">
-          <div className="panel-header">
-            <h2>Canton bridge</h2>
-            <button
-              className="button"
-              type="button"
-              onClick={handleProbeCantonBridge}
-              disabled={cantonBridgeState.loading}
-            >
-              {cantonBridgeState.loading ? "Checking..." : "Refresh bridge"}
-            </button>
-          </div>
+        <article className="metric-card">
+          <h2>idOS proof</h2>
           <p>
-            Run <code>pnpm canton:bridge</code> to start the local Node bridge that will prepare
-            Canton external-party topology using the same signer shown above.
+            The key authenticates as a linked <code>NEAR</code> wallet inside idOS.
           </p>
-          {cantonBridgeState.result ? (
+          {idosState.result ? (
             <dl className="data-list">
-              <DataRow label="Bridge URL" value={getCantonBridgeUrl()} />
-              <DataRow label="Network target" value={cantonBridgeState.result.network} />
-              <DataRow label="Configured" value={String(cantonBridgeState.result.configured)} />
+              <DataRow label="User ID" value={idosState.result.user?.id ?? "No linked profile"} />
+              <DataRow label="Has profile" value={String(idosState.result.hasProfile)} />
               <DataRow
-                label="Ledger API URL"
-                value={cantonBridgeState.result.ledgerClientUrl ?? "Not configured"}
+                label="Wallet visible"
+                value={String(idosState.result.generatedWalletPresent)}
               />
-              <DataRow
-                label="Auth method"
-                value={cantonBridgeState.result.authMethod ?? "Not configured"}
-              />
+              <DataRow label="Wallet count" value={String(idosState.result.wallets.length)} />
             </dl>
-          ) : null}
-          {cantonBridgeState.result?.missingFields.length ? (
-            <p className="muted-text">
-              Missing env: {cantonBridgeState.result.missingFields.join(", ")}
-            </p>
-          ) : null}
-          {cantonBridgeState.error ? <p className="error-text">{cantonBridgeState.error}</p> : null}
-        </div>
+          ) : (
+            <p className="muted-text">Run the demo to authenticate this key against idOS.</p>
+          )}
+        </article>
 
-        <div className="note note-card">
-          <div className="panel-header">
-            <h2>Prepare Canton party</h2>
-            <button
-              className="button"
-              type="button"
-              onClick={handlePrepareCantonTopology}
-              disabled={cantonTopologyState.loading}
-            >
-              {cantonTopologyState.loading ? "Preparing..." : "Prepare topology"}
-            </button>
-          </div>
-          <p>
-            This sends the displayed Canton public key to the local bridge and asks the validator
-            flow to prepare external-party topology. The returned <code>multiHash</code> is the
-            exact value the shared signer should sign in the next loop.
-          </p>
-          <label className="field">
-            <span>Party hint</span>
-            <input
-              className="text-input"
-              type="text"
-              value={partyHint}
-              onChange={(event) => {
-                setPartyHint(event.target.value);
-              }}
-            />
-          </label>
-          {cantonTopologyState.result ? (
+        <article className="metric-card">
+          <h2>Canton proof</h2>
+          <p>The same key signs topology, allocates an external party, and executes a real ping.</p>
+          {cantonPingExecutionState.result && cantonAllocationState.result ? (
             <dl className="data-list">
-              <DataRow label="Party ID" value={cantonTopologyState.result.partyId} />
+              <DataRow label="Party hint" value={partyHint ?? "Not generated"} />
+              <DataRow
+                label="Party ID"
+                value={shortenValue(cantonAllocationState.result.partyId)}
+              />
               <DataRow
                 label="Key fingerprint"
-                value={cantonTopologyState.result.publicKeyFingerprint}
+                value={shortenValue(cantonAllocationState.result.publicKeyFingerprint)}
               />
-              <DataRow label="Multi-hash" value={cantonTopologyState.result.multiHash} />
               <DataRow
-                label="Topology tx count"
-                value={String(cantonTopologyState.result.topologyTransactions.length)}
+                label="Ping update ID"
+                value={shortenValue(cantonPingExecutionState.result.updateId)}
               />
-            </dl>
-          ) : null}
-          {cantonTopologyState.result ? (
-            <button className="button" type="button" onClick={handleSignPreparedTopology}>
-              Sign multi-hash
-            </button>
-          ) : null}
-          {cantonSignature ? (
-            <dl className="data-list">
-              <DataRow label="Prepared signature" value={cantonSignature} />
-            </dl>
-          ) : null}
-          {cantonSignature ? (
-            <button
-              className="button"
-              type="button"
-              onClick={handleAllocateCantonParty}
-              disabled={cantonAllocationState.loading}
-            >
-              {cantonAllocationState.loading ? "Allocating..." : "Allocate external party"}
-            </button>
-          ) : null}
-          {cantonAllocationState.result ? (
-            <dl className="data-list">
-              <DataRow label="Allocated party" value={cantonAllocationState.result.partyId} />
-              <DataRow
-                label="Allocation fingerprint"
-                value={cantonAllocationState.result.publicKeyFingerprint}
-              />
-            </dl>
-          ) : null}
-          {cantonAllocationState.result ? (
-            <button
-              className="button"
-              type="button"
-              onClick={handlePrepareCantonPing}
-              disabled={cantonPingState.loading}
-            >
-              {cantonPingState.loading ? "Preparing ping..." : "Prepare self ping"}
-            </button>
-          ) : null}
-          {cantonPingState.result ? (
-            <dl className="data-list">
-              <DataRow label="Ping ID" value={cantonPingState.result.pingId} />
-              <DataRow label="Ping initiator" value={cantonPingState.result.partyId} />
-              <DataRow label="Ping responder" value={cantonPingState.result.responderPartyId} />
-              <DataRow
-                label="Ping tx hash"
-                value={cantonPingState.result.response.preparedTransactionHash}
-              />
-            </dl>
-          ) : null}
-          {cantonPingState.result ? (
-            <button className="button" type="button" onClick={handleSignPreparedPing}>
-              Sign ping hash
-            </button>
-          ) : null}
-          {cantonPingSignature ? (
-            <dl className="data-list">
-              <DataRow label="Ping signature" value={cantonPingSignature} />
-            </dl>
-          ) : null}
-          {cantonPingSignature ? (
-            <button
-              className="button"
-              type="button"
-              onClick={handleExecuteCantonPing}
-              disabled={cantonPingExecutionState.loading}
-            >
-              {cantonPingExecutionState.loading ? "Executing ping..." : "Execute ping"}
-            </button>
-          ) : null}
-          {cantonPingExecutionState.result ? (
-            <dl className="data-list">
-              <DataRow label="Ping update ID" value={cantonPingExecutionState.result.updateId} />
               <DataRow
                 label="Completion offset"
                 value={String(cantonPingExecutionState.result.completionOffset)}
               />
             </dl>
-          ) : null}
-          {cantonTopologyState.error ? <p className="error-text">{cantonTopologyState.error}</p> : null}
-          {cantonAllocationState.error ? <p className="error-text">{cantonAllocationState.error}</p> : null}
-          {cantonPingState.error ? <p className="error-text">{cantonPingState.error}</p> : null}
-          {cantonPingExecutionState.error ? <p className="error-text">{cantonPingExecutionState.error}</p> : null}
-        </div>
+          ) : (
+            <p className="muted-text">Run the demo to allocate a party and execute a self-ping.</p>
+          )}
+        </article>
 
-        <div className="note note-card">
-          <div className="panel-header">
-            <h2>Generated signer login</h2>
-            <button className="button" type="button" onClick={handleInspectIdos} disabled={idosState.loading}>
-              {idosState.loading ? "Authenticating..." : "Authenticate generated signer"}
-            </button>
-          </div>
-          <p>
-            This uses the generated Ed25519 key as a `NEAR` wallet signer and authenticates
-            directly against idOS using a browser-generated NEP-413 signature.
-          </p>
-          {idosState.result ? (
-            <>
+        <article className="metric-card">
+          <h2>Signature wires</h2>
+          <p>These are the cross-system signatures produced by the same private key.</p>
+          <dl className="data-list">
+            <DataRow
+              label="Sample idOS signature"
+              value={shortenValue(snapshot.sample.idosSignatureHex)}
+            />
+            <DataRow
+              label="Sample Canton signature"
+              value={shortenValue(snapshot.sample.cantonSignatureBase64)}
+            />
+            <DataRow
+              label="Topology signature"
+              value={cantonSignature ? shortenValue(cantonSignature) : "Run the demo"}
+            />
+            <DataRow
+              label="Ping signature"
+              value={cantonPingSignature ? shortenValue(cantonPingSignature) : "Run the demo"}
+            />
+          </dl>
+        </article>
+      </section>
+
+      <details className="panel detail-panel">
+        <summary>
+          <span>Raw artifacts</span>
+          <span className="muted-text">Full identifiers, hashes, and signatures</span>
+        </summary>
+        <div className="detail-grid">
+          <section>
+            <h3>Key derivations</h3>
+            <dl className="data-list">
+              <DataRow label="Ed25519 public key" value={snapshot.ed25519PublicKeyHex} />
+              <DataRow label="idOS address" value={snapshot.idosAdapter.publicAddress} />
+              <DataRow label="idOS public key" value={snapshot.idosAdapter.publicKey} />
+              <DataRow label="Canton public key" value={snapshot.cantonPublicKeyBase64} />
+            </dl>
+          </section>
+
+          <section>
+            <h3>Sample signatures</h3>
+            <dl className="data-list">
+              <DataRow label="Sample Canton hash" value={snapshot.sample.cantonHashBase64} />
+              <DataRow label="Sample Canton signature" value={snapshot.sample.cantonSignatureBase64} />
+              <DataRow label="Sample idOS message" value={snapshot.sample.idosMessage} />
+              <DataRow label="Sample idOS signature" value={snapshot.sample.idosSignatureHex} />
+            </dl>
+          </section>
+
+          {cantonTopologyState.result ? (
+            <section>
+              <h3>Real Canton topology</h3>
               <dl className="data-list">
-                <DataRow label="Node URL" value={idosState.result.nodeUrl} />
-                <DataRow label="Chain ID" value={idosState.result.chainId} />
-                <DataRow label="Has profile" value={String(idosState.result.hasProfile)} />
-                <DataRow label="Wallet visible" value={String(idosState.result.generatedWalletPresent)} />
+                <DataRow label="Party hint" value={partyHint ?? "Not generated"} />
+                <DataRow label="Party ID" value={cantonTopologyState.result.partyId} />
                 <DataRow
-                  label="User ID"
-                  value={idosState.result.user?.id ?? "No idOS profile is linked to this signer yet."}
+                  label="Key fingerprint"
+                  value={cantonTopologyState.result.publicKeyFingerprint}
                 />
-                <DataRow label="Wallet count" value={String(idosState.result.wallets.length)} />
+                <DataRow label="Topology multi-hash" value={cantonTopologyState.result.multiHash} />
+                <DataRow label="Topology signature" value={cantonSignature ?? "Missing"} />
               </dl>
-              <WalletSummaryList wallets={idosState.result.wallets} />
-            </>
+            </section>
           ) : null}
-          {idosState.error ? <p className="error-text">{idosState.error}</p> : null}
-        </div>
 
-        <div className="note note-card">
-          <div className="panel-header">
-            <h2>Link to existing profile</h2>
-            <button
-              className="button"
-              type="button"
-              onClick={handleConnectExistingWallet}
-              disabled={existingWalletState.loading}
-            >
-              {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
-            </button>
-          </div>
-          <p>
-            This flow uses an existing idOS-linked EVM wallet for authentication, then adds the
-            generated signer as a `NEAR` wallet using its implicit address and a browser-generated
-            NEP-413 signature.
-          </p>
+          {cantonPingState.result ? (
+            <section>
+              <h3>Real Canton ping</h3>
+              <dl className="data-list">
+                <DataRow label="Ping ID" value={cantonPingState.result.pingId} />
+                <DataRow label="Ping responder" value={cantonPingState.result.responderPartyId} />
+                <DataRow
+                  label="Prepared transaction hash"
+                  value={cantonPingState.result.response.preparedTransactionHash}
+                />
+                <DataRow label="Ping signature" value={cantonPingSignature ?? "Missing"} />
+                <DataRow
+                  label="Ping update ID"
+                  value={cantonPingExecutionState.result?.updateId ?? "Not executed"}
+                />
+              </dl>
+            </section>
+          ) : null}
+        </div>
+      </details>
+
+      <details className="panel detail-panel" open={!idosReady}>
+        <summary>
+          <span>Bootstrap idOS link</span>
+          <span className="muted-text">Use this only if the shared key is not linked yet</span>
+        </summary>
+        <div className="detail-grid">
+          <section>
+            <h3>Link workflow</h3>
+            <p>
+              Connect an existing idOS-linked EVM wallet, then add the generated key as a{" "}
+              <code>NEAR</code> wallet using its implicit address and a browser-generated NEP-413
+              signature.
+            </p>
+            <div className="button-row">
+              <button
+                className="button"
+                type="button"
+                onClick={handleConnectExistingWallet}
+                disabled={existingWalletState.loading}
+              >
+                {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
+              </button>
+              {existingWalletState.result?.hasProfile ? (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={handleLinkGeneratedWallet}
+                  disabled={linkState.loading}
+                >
+                  {linkState.loading ? "Linking..." : "Link generated key to idOS"}
+                </button>
+              ) : null}
+            </div>
+          </section>
+
           {existingWalletState.result ? (
-            <dl className="data-list">
-              <DataRow label="Connected wallet" value={existingWalletState.result.address} />
-              <DataRow label="Has profile" value={String(existingWalletState.result.hasProfile)} />
-              <DataRow
-                label="Profile user ID"
-                value={
-                  existingWalletState.result.user?.id ??
-                  "The connected wallet does not have an idOS profile."
-                }
-              />
-              <DataRow
-                label="Encryption mode"
-                value={existingWalletState.result.user?.encryption_password_store ?? "unknown"}
-              />
-              <DataRow
-                label="Linked wallets"
-                value={String(existingWalletState.result.wallets.length)}
-              />
-            </dl>
+            <section>
+              <h3>Connected profile</h3>
+              <dl className="data-list">
+                <DataRow label="Connected wallet" value={existingWalletState.result.address} />
+                <DataRow label="Has profile" value={String(existingWalletState.result.hasProfile)} />
+                <DataRow
+                  label="Profile user ID"
+                  value={
+                    existingWalletState.result.user?.id ??
+                    "The connected wallet does not have an idOS profile."
+                  }
+                />
+                <DataRow
+                  label="Linked wallets"
+                  value={String(existingWalletState.result.wallets.length)}
+                />
+              </dl>
+              <WalletSummaryList wallets={existingWalletState.result.wallets} />
+            </section>
           ) : null}
-          {existingWalletState.result ? <WalletSummaryList wallets={existingWalletState.result.wallets} /> : null}
-          {existingWalletState.result?.hasProfile ? (
-            <button
-              className="button"
-              type="button"
-              onClick={handleLinkGeneratedWallet}
-              disabled={linkState.loading}
-            >
-              {linkState.loading ? "Linking..." : "Link generated signer as NEAR wallet"}
-            </button>
-          ) : null}
-          {existingWalletState.error ? <p className="error-text">{existingWalletState.error}</p> : null}
+
           {linkState.result ? (
-            <dl className="data-list">
-              <DataRow label="Link status" value={linkState.result.status} />
-              <DataRow label="Transaction hash" value={linkState.result.txHash ?? "No transaction submitted"} />
-            </dl>
+            <section>
+              <h3>Link result</h3>
+              <dl className="data-list">
+                <DataRow label="Status" value={linkState.result.status} />
+                <DataRow
+                  label="Transaction hash"
+                  value={linkState.result.txHash ?? "No transaction submitted"}
+                />
+              </dl>
+            </section>
           ) : null}
+
+          {existingWalletState.error ? <p className="error-text">{existingWalletState.error}</p> : null}
           {linkState.error ? <p className="error-text">{linkState.error}</p> : null}
         </div>
-      </section>
+      </details>
     </main>
   );
 }
