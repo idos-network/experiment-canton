@@ -33,20 +33,19 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 
 ## Milestone 2: Bootstrap/linking
 
-- [ ] Complete the existing-wallet flow that links the generated signer as a `NEAR` wallet
-- [ ] Validate the end-to-end linking flow in a browser with a real idOS profile
-- [ ] Verify that the linked signer can authenticate to idOS after being added
-- [ ] Decide whether FaceSign bootstrap is still needed once existing-wallet linking works
+- [x] Complete the existing-wallet flow that links the generated signer as a `NEAR` wallet
+- [x] Validate the end-to-end linking flow in a browser with a real idOS profile
+- [x] Verify that the linked signer can authenticate to idOS after being added
+- [x] Decide that FaceSign bootstrap is not needed for the current experiment path
 
 ## Milestone 3: Cleanup
 
-- [ ] Document local setup and required env vars
-- [ ] Document exact limits and known shortcuts in the PoC
+- [x] Document local setup and required env vars
+- [x] Document exact limits and known shortcuts in the PoC
 - [ ] Capture follow-up work for productionizing the approach
 
 ## Open questions
 
-- [ ] Does the linked `NEAR` wallet path authenticate cleanly for the generated signer after browser-side linking?
 - [ ] What is the minimum Canton setup needed to demonstrate signer legitimacy without pulling in unnecessary network complexity?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
