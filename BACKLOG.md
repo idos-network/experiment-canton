@@ -49,7 +49,16 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [x] Add a bridge endpoint and UI action for external-party allocation submission
 - [x] Document the bridge env contract for `localnet` and validator-backed `devnet`
 
-## Milestone 4: Cleanup
+## Milestone 4: LocalNet bootstrap
+
+- [x] Decide to use LocalNet before DevNet to avoid validator allowlisting
+- [x] Add repo-local LocalNet bootstrap scripts
+- [x] Prefer `podman-compose` with compose-engine fallbacks
+- [x] Resolve the latest Splice release bundle dynamically from GitHub
+- [x] Keep LocalNet artifacts in a repo-local gitignored cache directory
+- [ ] Validate a full LocalNet startup on this machine once the Podman connection is healthy
+
+## Milestone 5: Cleanup
 
 - [x] Document local setup and required env vars
 - [x] Document exact limits and known shortcuts in the PoC
@@ -57,7 +66,7 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 
 ## Open questions
 
-- [ ] Should the first real Canton end-to-end path use LocalNet or an allowlisted DevNet validator?
+- [ ] Once LocalNet is working, do we still need a separate DevNet validation loop for the signer handoff?
 - [ ] If a profile uses `mpc`, do we need extra MPC address-sync work for the linked signer to unlock encrypted data?
 
 ## Not doing now

@@ -45,6 +45,27 @@ pnpm canton:bridge
 
 Then open the local Vite URL in a browser with an injected EVM wallet.
 
+## LocalNet bootstrap
+
+The repo now includes a LocalNet wrapper around the official Splice compose bundle:
+
+```bash
+pnpm canton:localnet:doctor
+pnpm canton:localnet:download
+pnpm canton:localnet:up
+pnpm canton:bridge:localnet
+```
+
+Notes:
+
+- the wrapper prefers `podman-compose`
+- it falls back to `podman compose` and then `docker compose`
+- Podman must have a healthy machine connection; installed binaries alone are not enough
+- LocalNet artifacts are cached under `.local/canton-localnet`
+- the bundle version is resolved from the latest Digital Asset `decentralized-canton-sync` release unless `CANTON_LOCALNET_VERSION` is set
+
+The wrapper script lives at [scripts/canton-localnet.sh](scripts/canton-localnet.sh).
+
 ## Happy path
 
 1. Open the app.
@@ -75,6 +96,8 @@ The proof used for idOS is a browser-generated NEP-413 signature. This kept the 
   Shared Ed25519 key lifecycle plus Canton/idOS views of the same key
 - [server/canton-bridge.mjs](server/canton-bridge.mjs)
   Local Node bridge for Canton external-party topology preparation
+- [scripts/canton-localnet.sh](scripts/canton-localnet.sh)
+  Repo-local LocalNet download and compose wrapper
 - [src/lib/near.ts](src/lib/near.ts)
   NEP-413 message construction and signing
 - [src/lib/idos/client.ts](src/lib/idos/client.ts)
@@ -94,6 +117,12 @@ Instead it expects a small local bridge process:
 - `POST /v1/external-party/allocate`
   Accepts the same public key plus the browser-produced signature and submits the allocation request
 
+For LocalNet specifically, run the bridge with:
+
+```bash
+pnpm canton:bridge:localnet
+```
+
 Bridge configuration is env-driven:
 
 - `CANTON_NETWORK=localnet`
@@ -106,6 +135,9 @@ There is an `.env.example` file with the supported variables.
 ## Validation used so far
 
 - `pnpm build`
+- `pnpm canton:localnet:doctor`
+- `pnpm canton:localnet:download`
+- `CANTON_LOCALNET_DRY_RUN=1 pnpm canton:localnet:up`
 - `pnpm canton:bridge` plus `GET /healthz`
 - direct reachability checks against `https://nodes.idos.network`
 - local NEP-413 packing and verification sanity checks
@@ -116,6 +148,7 @@ There is an `.env.example` file with the supported variables.
 - No Daml code
 - No validated Canton external-party execute success path yet
 - No Canton token transfer or ping submission path yet
+- LocalNet orchestration is scripted, but full startup has not been validated on this machine yet
 - DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - No MPC-specific wallet sync work
 - The generated key is stored in browser `localStorage`
@@ -125,5 +158,5 @@ There is an `.env.example` file with the supported variables.
 
 - validate the full prepare-sign-allocate path against either LocalNet or an allowlisted DevNet validator
 - add a real post-allocation transaction flow such as ping or tap
-- decide whether the first real network target is LocalNet or an allowlisted DevNet validator
+- decide whether a DevNet-specific validation loop is still needed after LocalNet works
 - reduce bundle size by moving more Canton-specific code out of the browser path
