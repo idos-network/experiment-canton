@@ -44,6 +44,7 @@ This repo is intentionally PoC quality. No Daml work for now. Focus on signer re
 - [x] Add a local Canton bridge process that can be started outside the browser app
 - [x] Add a bridge health endpoint so the frontend can detect local Canton readiness
 - [x] Add an external-party topology preparation endpoint that accepts a public key
+- [x] Wire the frontend to request external-party topology for the shared signer
 - [x] Document the bridge env contract for `localnet` and validator-backed `devnet`
 
 ## Milestone 4: Cleanup

@@ -18,6 +18,7 @@ Working today:
 - link that generated signer to an existing idOS profile
 - authenticate to idOS using the generated signer after linking
 - probe a local Canton bridge that is meant to talk to a validator-backed external-party flow
+- request prepared Canton external-party topology for the shared signer from the UI
 
 ## Stack
 
@@ -119,7 +120,7 @@ There is an `.env.example` file with the supported variables.
 
 ## Next likely steps
 
-- connect the browser signer to the bridge topology endpoint and sign the returned `multiHash`
+- sign the bridge-returned `multiHash` in the browser and display the resulting signature
 - add the matching bridge-side execute step for external-party allocation
 - decide whether the first real network target is LocalNet or an allowlisted DevNet validator
 - reduce bundle size by moving more Canton-specific code out of the browser path

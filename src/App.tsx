@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 
 import {
   getCantonBridgeUrl,
+  prepareCantonExternalPartyTopology,
   probeCantonBridge,
   type CantonBridgeHealth,
+  type CantonPreparedTopology,
 } from "./lib/cantonBridge";
 import { connectEvmWallet } from "./lib/idos/evm";
 import {
@@ -48,10 +50,20 @@ function WalletSummaryList({
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<SharedSignerSnapshot | null>(null);
+  const [partyHint, setPartyHint] = useState("idos-shared-signer");
   const [cantonBridgeState, setCantonBridgeState] = useState<{
     error: string | null;
     loading: boolean;
     result: CantonBridgeHealth | null;
+  }>({
+    error: null,
+    loading: false,
+    result: null,
+  });
+  const [cantonTopologyState, setCantonTopologyState] = useState<{
+    error: string | null;
+    loading: boolean;
+    result: CantonPreparedTopology | null;
   }>({
     error: null,
     loading: false,
@@ -141,6 +153,40 @@ export default function App() {
     } catch (error) {
       setIdosState({
         error: error instanceof Error ? error.message : "Failed to inspect idOS signer.",
+        loading: false,
+        result: null,
+      });
+    }
+  }
+
+  async function handlePrepareCantonTopology() {
+    if (!snapshot) {
+      return;
+    }
+
+    setCantonTopologyState({
+      error: null,
+      loading: true,
+      result: null,
+    });
+
+    try {
+      const result = await prepareCantonExternalPartyTopology({
+        partyHint,
+        publicKeyBase64: snapshot.cantonPublicKeyBase64,
+      });
+
+      setCantonTopologyState({
+        error: null,
+        loading: false,
+        result,
+      });
+    } catch (error) {
+      setCantonTopologyState({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to prepare Canton external-party topology.",
         loading: false,
         result: null,
       });
@@ -321,6 +367,51 @@ export default function App() {
             </p>
           ) : null}
           {cantonBridgeState.error ? <p className="error-text">{cantonBridgeState.error}</p> : null}
+        </div>
+
+        <div className="note note-card">
+          <div className="panel-header">
+            <h2>Prepare Canton party</h2>
+            <button
+              className="button"
+              type="button"
+              onClick={handlePrepareCantonTopology}
+              disabled={cantonTopologyState.loading}
+            >
+              {cantonTopologyState.loading ? "Preparing..." : "Prepare topology"}
+            </button>
+          </div>
+          <p>
+            This sends the displayed Canton public key to the local bridge and asks the validator
+            flow to prepare external-party topology. The returned <code>multiHash</code> is the
+            exact value the shared signer should sign in the next loop.
+          </p>
+          <label className="field">
+            <span>Party hint</span>
+            <input
+              className="text-input"
+              type="text"
+              value={partyHint}
+              onChange={(event) => {
+                setPartyHint(event.target.value);
+              }}
+            />
+          </label>
+          {cantonTopologyState.result ? (
+            <dl className="data-list">
+              <DataRow label="Party ID" value={cantonTopologyState.result.partyId} />
+              <DataRow
+                label="Key fingerprint"
+                value={cantonTopologyState.result.publicKeyFingerprint}
+              />
+              <DataRow label="Multi-hash" value={cantonTopologyState.result.multiHash} />
+              <DataRow
+                label="Topology tx count"
+                value={String(cantonTopologyState.result.topologyTransactions.length)}
+              />
+            </dl>
+          ) : null}
+          {cantonTopologyState.error ? <p className="error-text">{cantonTopologyState.error}</p> : null}
         </div>
 
         <div className="note note-card">
