@@ -1,0 +1,118 @@
+:root {
+  color: #f4f0e8;
+  background:
+    radial-gradient(circle at top, rgba(217, 119, 6, 0.35), transparent 32%),
+    linear-gradient(180deg, #11141a 0%, #1d242c 45%, #0f1318 100%);
+  font-family:
+    "Iowan Old Style", "Palatino Linotype", "URW Palladio L", "Book Antiqua", Palatino,
+    serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.app-shell {
+  margin: 0 auto;
+  display: grid;
+  min-height: 100vh;
+  max-width: 1040px;
+  gap: 24px;
+  padding: 32px 20px 48px;
+}
+
+.hero,
+.panel {
+  border: 1px solid rgba(244, 240, 232, 0.14);
+  background: rgba(9, 11, 15, 0.45);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.hero {
+  display: grid;
+  gap: 16px;
+  align-content: end;
+  min-height: 360px;
+  border-radius: 28px;
+  padding: 32px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #f59e0b;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.panel h2,
+.lede {
+  margin: 0;
+}
+
+.hero h1 {
+  max-width: 10ch;
+  font-size: clamp(3rem, 8vw, 6rem);
+  line-height: 0.92;
+}
+
+.lede {
+  max-width: 42rem;
+  color: rgba(244, 240, 232, 0.82);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+.panel {
+  border-radius: 24px;
+  padding: 28px 24px;
+}
+
+.panel h2 {
+  margin-bottom: 18px;
+  font-size: 1.5rem;
+}
+
+.milestone-list {
+  margin: 0;
+  padding-left: 1.4rem;
+  color: rgba(244, 240, 232, 0.82);
+}
+
+.milestone-list li + li {
+  margin-top: 12px;
+}
+
+@media (min-width: 800px) {
+  .app-shell {
+    padding-top: 48px;
+  }
+
+  .hero {
+    min-height: 460px;
+    padding: 40px;
+  }
+
+  .panel {
+    padding: 32px;
+  }
+}
