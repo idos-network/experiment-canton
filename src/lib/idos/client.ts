@@ -7,7 +7,15 @@ import { signNearMessage } from "../near";
 import { addWallet, getUser, getWallets, hasProfile, type IdosUser, type IdosWallet } from "./actions";
 import { createWebKwilClient } from "./kwilActionClient";
 
-const DEFAULT_IDOS_NODE_URL = "https://nodes.idos.network";
+const DEFAULT_IDOS_NODE_URL = "https://nodes.staging.idos.network";
+
+function getDefaultIdosNodeUrl(): string {
+  const configuredUrl = import.meta.env.VITE_IDOS_NODE_URL;
+
+  return typeof configuredUrl === "string" && configuredUrl.trim()
+    ? configuredUrl.trim()
+    : DEFAULT_IDOS_NODE_URL;
+}
 
 export type IdosInspectorResult = {
   nodeUrl: string;
@@ -48,7 +56,7 @@ function createIdosKwilSigner(snapshot: SharedSignerSnapshot): KwilSigner {
 
 export async function inspectIdosSigner(
   snapshot: SharedSignerSnapshot,
-  nodeUrl = DEFAULT_IDOS_NODE_URL,
+  nodeUrl = getDefaultIdosNodeUrl(),
 ): Promise<IdosInspectorResult> {
   const kwilClient = await createWebKwilClient({ nodeUrl });
   const signer = createIdosKwilSigner(snapshot);
@@ -82,7 +90,7 @@ function createEvmKwilSigner(signer: JsonRpcSigner, address: string): KwilSigner
 export async function inspectExistingWallet(
   signer: JsonRpcSigner,
   address: string,
-  nodeUrl = DEFAULT_IDOS_NODE_URL,
+  nodeUrl = getDefaultIdosNodeUrl(),
 ): Promise<ExistingWalletInspection> {
   const kwilClient = await createWebKwilClient({ nodeUrl });
   const kwilSigner = createEvmKwilSigner(signer, address);
@@ -106,7 +114,7 @@ export async function linkGeneratedNearWalletToExistingProfile({
   existingWalletAddress,
   existingWalletSigner,
   snapshot,
-  nodeUrl = DEFAULT_IDOS_NODE_URL,
+  nodeUrl = getDefaultIdosNodeUrl(),
 }: {
   existingWalletAddress: string;
   existingWalletSigner: JsonRpcSigner;

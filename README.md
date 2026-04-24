@@ -1,86 +1,105 @@
 # experiment-canton
 
-PoC for sharing a single Ed25519 signer between:
+PoC for one browser-generated Ed25519 key doing both of these jobs:
 
-- Canton external-party signing primitives
-- idOS user authentication
+- authenticate to idOS
+- sign for a Canton external party
 
-The current repo avoids Daml and Canton account abstraction on purpose. The focus is signer reuse.
+The intended path for this repo is:
 
-The current UI is intentionally slimmed down around one statement:
+- idOS web app: `https://app.staging.idos.network`
+- idOS node: `https://nodes.staging.idos.network`
+- Canton: local LocalNet plus a local bridge process
+
+The demo is intentionally narrow:
 
 > One Ed25519 key can authenticate to idOS and sign for a Canton external party.
 
-## Current status
+This repo does not try to explain every environment or every Canton flow. It is built to get
+that one statement working end to end.
+
+## What this proves
 
 Working today:
 
 - generate and persist one browser-local Ed25519 keypair
-- derive a Canton signing key view from that keypair
-- derive a `NEAR` wallet view for idOS from that same keypair
+- derive a `NEAR` wallet view for idOS from that keypair
 - link that generated signer to an existing idOS profile
 - authenticate to idOS using the generated signer after linking
+- derive a Canton signing key view from that same keypair
 - prepare Canton external-party topology for the shared signer from the UI
 - sign the returned Canton `multiHash` in the browser and send it back for allocation
 - allocate a real Canton external party on LocalNet
 - prepare, sign, and execute a real Canton self-ping after allocation
-- show both systems in one browser flow with raw artifacts hidden behind details panels
 
-## Stack
+## Fastest Path
 
-- Vite
-- React
-- TypeScript
-- `@canton-network/wallet-sdk`
-- `@kwilteam/kwil-js`
-- browser-side `tweetnacl`
+Follow these steps in order.
 
-## Run locally
+### 1. Install dependencies
 
 ```bash
 pnpm install
-pnpm dev
 ```
 
-In a second terminal, start the local Canton bridge:
+### 2. Make sure you have an idOS profile on staging
 
-```bash
-pnpm canton:bridge
-```
+Open `https://app.staging.idos.network`.
 
-Then open the local Vite URL in a browser. You only need an injected EVM wallet if the shared key
-has not been linked to idOS yet.
+If you do not already have an idOS profile there:
 
-## LocalNet bootstrap
+1. Create a profile with FaceSign.
+2. Connect an EVM wallet.
+3. Keep using that same EVM wallet for the bootstrap step in this demo.
 
-The repo now includes a LocalNet wrapper around the official Splice compose bundle:
+The browser app in this repo talks to `https://nodes.staging.idos.network` by default.
+
+### 3. Start Canton LocalNet
 
 ```bash
 pnpm canton:localnet:doctor
 pnpm canton:localnet:download
 pnpm canton:localnet:up
-pnpm canton:bridge:localnet
-pnpm canton:bridge:smoke
 ```
 
 Notes:
 
 - the wrapper prefers `podman-compose`
 - it falls back to `podman compose` and then `docker compose`
-- Podman must have a healthy machine connection; installed binaries alone are not enough
+- Podman must have a healthy machine connection; installed binaries alone are not enough. On non-Linux hosts, you may also need a working Podman machine.
 - LocalNet artifacts are cached under `.local/canton-localnet`
 - the bundle version is resolved from the latest Digital Asset `decentralized-canton-sync` release unless `CANTON_LOCALNET_VERSION` is set
 
-The wrapper script lives at [scripts/canton-localnet.sh](scripts/canton-localnet.sh).
+### 4. Start the local Canton bridge
 
-## Demo flow
+In a second terminal:
 
-1. Open the app.
-2. Let it create or load the shared signer from browser storage.
-3. If the key is not linked to idOS yet, expand `Bootstrap idOS link` and:
-   - connect an existing EVM wallet with an idOS profile
-   - click `Link generated key to idOS`
-4. Click `Run crypto demo`.
+```bash
+pnpm canton:bridge:localnet
+```
+
+### 5. Start the browser app
+
+In a third terminal:
+
+```bash
+pnpm dev
+```
+
+### 6. Run the browser flow
+
+Open the local Vite URL.
+
+The app will create or load a browser-local Ed25519 key automatically.
+
+If that key is not linked to idOS yet:
+
+1. Expand `Bootstrap idOS link`.
+2. Click `Connect existing EVM wallet`.
+3. Connect the same staging idOS wallet you used at `app.staging.idos.network`.
+4. Click `Link generated key to idOS`.
+
+Then click `Run crypto demo`.
 
 Expected result:
 
@@ -89,7 +108,7 @@ Expected result:
 - the app shows the idOS user id reached by the shared key
 - the app shows the Canton party id and ping update id reached by that same key
 
-## Important implementation detail
+## How the idOS Side Works
 
 The generated signer is linked to idOS as:
 
@@ -97,79 +116,73 @@ The generated signer is linked to idOS as:
 - `address`: NEAR implicit address derived from the Ed25519 public key
 - `public_key`: `ed25519:<base58>`
 
-The proof used for idOS is a browser-generated NEP-413 signature. This kept the integration simpler than trying to force the key through FaceSign-specific flows.
+The proof used for idOS is a browser-generated NEP-413 signature. This kept the integration
+simpler than trying to force the key through FaceSign-specific flows.
 
-## Files worth reading
+## How the Canton Side Works
 
-- [src/lib/sharedSigner.ts](src/lib/sharedSigner.ts)
-  Shared Ed25519 key lifecycle plus Canton/idOS views of the same key
-- [server/canton-bridge.mjs](server/canton-bridge.mjs)
-  Local Node bridge for Canton external-party topology preparation
-- [scripts/canton-localnet.sh](scripts/canton-localnet.sh)
-  Repo-local LocalNet download and compose wrapper
-- [scripts/canton-bridge-smoke.mjs](scripts/canton-bridge-smoke.mjs)
-  CLI smoke test for the prepare-sign-allocate bridge roundtrip
-- [src/lib/near.ts](src/lib/near.ts)
-  NEP-413 message construction and signing
-- [src/lib/idos/client.ts](src/lib/idos/client.ts)
-  Thin idOS-specific client logic for profile inspection and wallet linking
-- [src/App.tsx](src/App.tsx)
-  Slim one-button demo plus bootstrap/details panels
-
-## Canton bridge
-
-The browser app does not talk to the Canton SDK directly for the real network path anymore.
-Instead it expects a small local bridge process:
+The browser app does not talk to the Canton SDK directly for the real network path.
+Instead it talks to a small local bridge process:
 
 - `GET /healthz`
   Returns bridge config status for the UI
 - `POST /v1/external-party/topology`
-  Accepts a Canton public key and returns prepared external-party topology plus the `multiHash` that the browser signer should sign
+  Returns prepared external-party topology plus the `multiHash` the browser signer must sign
 - `POST /v1/external-party/allocate`
-  Accepts the same public key plus the browser-produced signature and submits the allocation request
+  Submits the browser-produced signature and allocates the external party
 - `POST /v1/ping/prepare`
-  Prepares a Ping create transaction for an allocated party and returns the transaction hash to sign
+  Prepares a Ping create transaction and returns the transaction hash to sign
 - `POST /v1/ping/execute`
-  Accepts the prepared ping response plus the browser-produced signature and submits the transaction
+  Submits the signed Ping transaction
 
-For LocalNet specifically, run the bridge with:
+For the intended demo path, use:
 
-```bash
-pnpm canton:bridge:localnet
-```
+- browser app -> `http://127.0.0.1:8787`
+- bridge network -> `localnet`
+- idOS node -> `https://nodes.staging.idos.network`
 
-Bridge configuration is env-driven:
+There is an [.env.example](.env.example) file with the main browser and bridge variables,
+including `VITE_IDOS_NODE_URL` and `VITE_CANTON_BRIDGE_URL`.
 
-- `CANTON_NETWORK=localnet`
-  Uses the documented LocalNet defaults plus the standard unsafe self-signed auth
-- `CANTON_NETWORK=devnet` or `custom`
-  Requires your own validator ledger API URL and self-signed auth env vars
-
-There is an `.env.example` file with the supported variables.
-
-## Validation used so far
+## Validation Used So Far
 
 - `pnpm build`
 - `pnpm canton:localnet:doctor`
 - `pnpm canton:localnet:download`
 - `CANTON_LOCALNET_DRY_RUN=1 pnpm canton:localnet:up`
-- `pnpm canton:bridge` plus `GET /healthz`
+- `pnpm canton:bridge:localnet` plus `GET /healthz`
 - `pnpm canton:bridge:smoke` against a running LocalNet bridge, including self-ping execution
-- direct reachability checks against `https://nodes.idos.network`
+- direct reachability checks against `https://nodes.staging.idos.network`
 - local NEP-413 packing and verification sanity checks
-- browser validation with a real idOS profile
+- browser validation with a real staging idOS profile
 
-## Known limits
+## Files Worth Reading
+
+- [src/lib/sharedSigner.ts](src/lib/sharedSigner.ts)
+  Shared Ed25519 key lifecycle plus Canton and idOS views of the same key
+- [src/lib/idos/client.ts](src/lib/idos/client.ts)
+  idOS profile inspection and wallet-linking logic
+- [src/lib/near.ts](src/lib/near.ts)
+  NEP-413 message construction and signing
+- [server/canton-bridge.mjs](server/canton-bridge.mjs)
+  Local bridge for Canton external-party topology preparation and ping execution
+- [scripts/canton-localnet.sh](scripts/canton-localnet.sh)
+  Repo-local LocalNet download and compose wrapper
+- [scripts/canton-bridge-smoke.mjs](scripts/canton-bridge-smoke.mjs)
+  CLI smoke test for the prepare-sign-allocate bridge roundtrip
+- [src/App.tsx](src/App.tsx)
+  Demo UI and browser flow
+
+## Known Limits
 
 - No Daml code
-- DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
 - idOS scope here is wallet linking and authentication only
 - The generated key is stored in browser `localStorage`
 - Bundle size is large because the current app pulls the Canton SDK into the browser bundle
+- The README is intentionally biased toward staging idOS plus LocalNet; other environments require adjusting the config and validation path
 
-## Next likely steps
+## Next Likely Steps
 
-- decide whether a DevNet-specific validation loop is still needed after LocalNet works
 - capture and export a concise proof bundle from the demo run
 - decide how AG-oriented flows should consume this shared signer proof
 - reduce bundle size by moving more Canton-specific code out of the browser path
