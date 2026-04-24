@@ -16,6 +16,18 @@ const LOCALNET_AUTH = {
 
 let sdkPromise;
 
+function normalizeSdkError(error) {
+  const message = error instanceof Error ? error.message : "Unexpected bridge error.";
+
+  if (message.startsWith("Unsupported version - found ")) {
+    return new Error(
+      `${message}. This repo currently uses @canton-network/wallet-sdk@1.0.0, which only supports Canton 3.4.x ledger APIs. Use LocalNet 0.5.18 and restart both LocalNet and the bridge.`,
+    );
+  }
+
+  return error instanceof Error ? error : new Error(message);
+}
+
 function readEnv(name) {
   const value = process.env[name]?.trim();
 
@@ -164,7 +176,7 @@ async function getSdk(config) {
       logAdapter: "console",
     }).catch((error) => {
       sdkPromise = undefined;
-      throw error;
+      throw normalizeSdkError(error);
     });
   }
 

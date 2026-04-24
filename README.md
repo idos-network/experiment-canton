@@ -68,7 +68,8 @@ Notes:
 - it falls back to `podman compose` and then `docker compose`
 - Podman must have a healthy machine connection; installed binaries alone are not enough. On non-Linux hosts, you may also need a working Podman machine.
 - LocalNet artifacts are cached under `.local/canton-localnet`
-- the bundle version is resolved from the latest Digital Asset `decentralized-canton-sync` release unless `CANTON_LOCALNET_VERSION` is set
+- this repo defaults to `CANTON_LOCALNET_VERSION=0.5.18` because `@canton-network/wallet-sdk@1.0.0` only supports Canton `3.4.x`
+- if you already downloaded or started a newer bundle, rerun with `CANTON_LOCALNET_VERSION=0.5.18` or remove the newer bundle from `.local/canton-localnet`
 
 ### 4. Start the local Canton bridge
 

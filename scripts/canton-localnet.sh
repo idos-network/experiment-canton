@@ -6,9 +6,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK_ROOT="${CANTON_LOCALNET_ROOT:-$REPO_ROOT/.local/canton-localnet}"
 DOWNLOADS_DIR="$WORK_ROOT/downloads"
 RELEASES_DIR="$WORK_ROOT/releases"
-LATEST_RELEASE_API="https://api.github.com/repos/digital-asset/decentralized-canton-sync/releases/latest"
 ACTION="${1:-doctor}"
-TARGET_VERSION="${CANTON_LOCALNET_VERSION:-}"
+DEFAULT_COMPATIBLE_LOCALNET_VERSION="0.5.18"
+TARGET_VERSION="${CANTON_LOCALNET_VERSION:-$DEFAULT_COMPATIBLE_LOCALNET_VERSION}"
 DRY_RUN="${CANTON_LOCALNET_DRY_RUN:-0}"
 
 RELEASE_VERSION=""
@@ -110,12 +110,7 @@ doctor_compose_engine() {
 }
 
 release_metadata_json() {
-  if [[ -n "$TARGET_VERSION" ]]; then
-    curl -fsSL "https://api.github.com/repos/digital-asset/decentralized-canton-sync/releases/tags/v${TARGET_VERSION#v}"
-    return
-  fi
-
-  curl -fsSL "$LATEST_RELEASE_API"
+  curl -fsSL "https://api.github.com/repos/digital-asset/decentralized-canton-sync/releases/tags/v${TARGET_VERSION#v}"
 }
 
 resolve_release() {
@@ -391,7 +386,7 @@ case "$ACTION" in
 Usage: scripts/canton-localnet.sh [doctor|download|env|up|down|ps|logs]
 
 Environment:
-  CANTON_LOCALNET_VERSION   Override the Splice release version. Example: 0.5.18
+  CANTON_LOCALNET_VERSION   Override the Splice release version. Default: 0.5.18
   CANTON_LOCALNET_ROOT      Override the local bundle cache directory
   CANTON_LOCALNET_DRY_RUN   Set to 1 to print commands without executing them
 EOF
