@@ -94,6 +94,7 @@ function createAsyncState<T>(): AsyncState<T> {
 export default function App() {
   const [snapshot, setSnapshot] = useState<SharedSignerSnapshot | null>(null);
   const [partyHint, setPartyHint] = useState<string | null>(null);
+  const [bootstrapOpen, setBootstrapOpen] = useState(false);
   const [demoState, setDemoState] = useState<{
     error: string | null;
     loading: boolean;
@@ -231,6 +232,7 @@ export default function App() {
       });
 
       if (!idosResult.hasProfile || !idosResult.generatedWalletPresent) {
+        setBootstrapOpen(true);
         throw new Error("The shared key is not linked to idOS yet. Use the bootstrap section.");
       }
 
@@ -437,6 +439,87 @@ export default function App() {
         {demoState.error ? <p className="error-text">{demoState.error}</p> : null}
       </section>
 
+      <details
+        className="panel detail-panel"
+        open={bootstrapOpen}
+        onToggle={(event) => {
+          setBootstrapOpen(event.currentTarget.open);
+        }}
+      >
+        <summary>
+          <span>Bootstrap idOS link</span>
+          <span className="muted-text">Use this only if the shared key is not linked yet</span>
+        </summary>
+        <div className="detail-grid">
+          <section>
+            <h3>Link workflow</h3>
+            <p>
+              Connect an existing idOS-linked EVM wallet, then add the generated key as a{" "}
+              <code>NEAR</code> wallet using its implicit address and a browser-generated NEP-413
+              signature.
+            </p>
+            <div className="button-row">
+              <button
+                className="button"
+                type="button"
+                onClick={handleConnectExistingWallet}
+                disabled={existingWalletState.loading}
+              >
+                {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
+              </button>
+              {existingWalletState.result?.hasProfile ? (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={handleLinkGeneratedWallet}
+                  disabled={linkState.loading}
+                >
+                  {linkState.loading ? "Linking..." : "Link generated key to idOS"}
+                </button>
+              ) : null}
+            </div>
+          </section>
+
+          {existingWalletState.result ? (
+            <section>
+              <h3>Connected profile</h3>
+              <dl className="data-list">
+                <DataRow label="Connected wallet" value={existingWalletState.result.address} />
+                <DataRow label="Has profile" value={String(existingWalletState.result.hasProfile)} />
+                <DataRow
+                  label="Profile user ID"
+                  value={
+                    existingWalletState.result.user?.id ??
+                    "The connected wallet does not have an idOS profile."
+                  }
+                />
+                <DataRow
+                  label="Linked wallets"
+                  value={String(existingWalletState.result.wallets.length)}
+                />
+              </dl>
+              <WalletSummaryList wallets={existingWalletState.result.wallets} />
+            </section>
+          ) : null}
+
+          {linkState.result ? (
+            <section>
+              <h3>Link result</h3>
+              <dl className="data-list">
+                <DataRow label="Status" value={linkState.result.status} />
+                <DataRow
+                  label="Transaction hash"
+                  value={linkState.result.txHash ?? "No transaction submitted"}
+                />
+              </dl>
+            </section>
+          ) : null}
+
+          {existingWalletState.error ? <p className="error-text">{existingWalletState.error}</p> : null}
+          {linkState.error ? <p className="error-text">{linkState.error}</p> : null}
+        </div>
+      </details>
+
       <section className="panel summary-grid">
         <article className="metric-card">
           <h2>Key identity</h2>
@@ -584,80 +667,6 @@ export default function App() {
         </div>
       </details>
 
-      <details className="panel detail-panel" open={!idosReady}>
-        <summary>
-          <span>Bootstrap idOS link</span>
-          <span className="muted-text">Use this only if the shared key is not linked yet</span>
-        </summary>
-        <div className="detail-grid">
-          <section>
-            <h3>Link workflow</h3>
-            <p>
-              Connect an existing idOS-linked EVM wallet, then add the generated key as a{" "}
-              <code>NEAR</code> wallet using its implicit address and a browser-generated NEP-413
-              signature.
-            </p>
-            <div className="button-row">
-              <button
-                className="button"
-                type="button"
-                onClick={handleConnectExistingWallet}
-                disabled={existingWalletState.loading}
-              >
-                {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
-              </button>
-              {existingWalletState.result?.hasProfile ? (
-                <button
-                  className="button"
-                  type="button"
-                  onClick={handleLinkGeneratedWallet}
-                  disabled={linkState.loading}
-                >
-                  {linkState.loading ? "Linking..." : "Link generated key to idOS"}
-                </button>
-              ) : null}
-            </div>
-          </section>
-
-          {existingWalletState.result ? (
-            <section>
-              <h3>Connected profile</h3>
-              <dl className="data-list">
-                <DataRow label="Connected wallet" value={existingWalletState.result.address} />
-                <DataRow label="Has profile" value={String(existingWalletState.result.hasProfile)} />
-                <DataRow
-                  label="Profile user ID"
-                  value={
-                    existingWalletState.result.user?.id ??
-                    "The connected wallet does not have an idOS profile."
-                  }
-                />
-                <DataRow
-                  label="Linked wallets"
-                  value={String(existingWalletState.result.wallets.length)}
-                />
-              </dl>
-              <WalletSummaryList wallets={existingWalletState.result.wallets} />
-            </section>
-          ) : null}
-
-          {linkState.result ? (
-            <section>
-              <h3>Link result</h3>
-              <dl className="data-list">
-                <DataRow label="Status" value={linkState.result.status} />
-                <DataRow
-                  label="Transaction hash"
-                  value={linkState.result.txHash ?? "No transaction submitted"}
-                />
-              </dl>
-            </section>
-          ) : null}
-
-          {existingWalletState.error ? <p className="error-text">{existingWalletState.error}</p> : null}
-          {linkState.error ? <p className="error-text">{linkState.error}</p> : null}
-        </div>
-      </details>
     </main>
   );
 }
