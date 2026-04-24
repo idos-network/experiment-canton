@@ -321,6 +321,20 @@ body {
   gap: 22px;
 }
 
+.bootstrap-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.bootstrap-stack section {
+  display: grid;
+  gap: 14px;
+}
+
+.bootstrap-stack .button {
+  justify-self: start;
+}
+
 .detail-grid section {
   display: grid;
   gap: 14px;

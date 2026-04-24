@@ -450,36 +450,7 @@ export default function App() {
           <span>Bootstrap idOS link</span>
           <span className="muted-text">Use this only if the shared key is not linked yet</span>
         </summary>
-        <div className="detail-grid">
-          <section>
-            <h3>Link workflow</h3>
-            <p>
-              Connect an existing idOS-linked EVM wallet, then add the generated key as a{" "}
-              <code>NEAR</code> wallet using its implicit address and a browser-generated NEP-413
-              signature.
-            </p>
-            <div className="button-row">
-              <button
-                className="button"
-                type="button"
-                onClick={handleConnectExistingWallet}
-                disabled={existingWalletState.loading}
-              >
-                {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
-              </button>
-              {existingWalletState.result?.hasProfile ? (
-                <button
-                  className="button"
-                  type="button"
-                  onClick={handleLinkGeneratedWallet}
-                  disabled={linkState.loading}
-                >
-                  {linkState.loading ? "Linking..." : "Link generated key to idOS"}
-                </button>
-              ) : null}
-            </div>
-          </section>
-
+        <div className="bootstrap-stack">
           {existingWalletState.result ? (
             <section>
               <h3>Connected profile</h3>
@@ -501,6 +472,38 @@ export default function App() {
               <WalletSummaryList wallets={existingWalletState.result.wallets} />
             </section>
           ) : null}
+
+          <section>
+            <h3>Link workflow</h3>
+            <p>
+              Connect an existing idOS-linked EVM wallet, then add the generated key as a{" "}
+              <code>NEAR</code> wallet using its implicit address and a browser-generated NEP-413
+              signature.
+            </p>
+            {!existingWalletState.result ? (
+              <button
+                className="button"
+                type="button"
+                onClick={handleConnectExistingWallet}
+                disabled={existingWalletState.loading}
+              >
+                {existingWalletState.loading ? "Connecting..." : "Connect existing EVM wallet"}
+              </button>
+            ) : existingWalletState.result.hasProfile ? (
+              <button
+                className="button"
+                type="button"
+                onClick={handleLinkGeneratedWallet}
+                disabled={linkState.loading}
+              >
+                {linkState.loading ? "Linking..." : "Link generated key to idOS"}
+              </button>
+            ) : (
+              <p className="muted-text">
+                Connect a wallet that already has an idOS profile before linking the generated key.
+              </p>
+            )}
+          </section>
 
           {linkState.result ? (
             <section>
