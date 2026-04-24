@@ -62,6 +62,10 @@ function persistSigner(record: SharedSignerRecord): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
 }
 
+export function resetStoredSharedSigner(): void {
+  window.localStorage.removeItem(STORAGE_KEY);
+}
+
 export function signDetachedMessage(
   privateKeyBase64: string,
   message: string | Uint8Array,

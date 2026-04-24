@@ -24,6 +24,7 @@ import {
 } from "./lib/idos/client";
 import {
   loadOrCreateSharedSigner,
+  resetStoredSharedSigner,
   signCantonTransactionHash,
   type SharedSignerSnapshot,
 } from "./lib/sharedSigner";
@@ -302,13 +303,14 @@ export default function App() {
     }
   }
 
-  async function handleRegenerateSigner() {
+  async function handleResetClientState() {
     setSnapshot(null);
+    resetStoredSharedSigner();
     resetDemoState();
     setConnectedWallet(null);
     setExistingWalletState(createAsyncState());
     setLinkState(createAsyncState());
-    setSnapshot(await loadOrCreateSharedSigner(true));
+    setSnapshot(await loadOrCreateSharedSigner());
   }
 
   async function handleConnectExistingWallet() {
@@ -413,8 +415,8 @@ export default function App() {
           <button className="button" type="button" onClick={handleRunDemo} disabled={demoState.loading}>
             {demoState.loading ? "Running demo..." : "Run crypto demo"}
           </button>
-          <button className="button button-subtle" type="button" onClick={handleRegenerateSigner}>
-            Regenerate key
+          <button className="button button-subtle" type="button" onClick={handleResetClientState}>
+            Reset client state
           </button>
         </div>
         <div className="status-row">
