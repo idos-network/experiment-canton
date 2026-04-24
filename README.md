@@ -163,7 +163,7 @@ There is an `.env.example` file with the supported variables.
 
 - No Daml code
 - DevNet still requires your own validator access; removing the browser wallet dependency does not remove validator onboarding
-- No MPC-specific wallet sync work
+- idOS scope here is wallet linking and authentication only
 - The generated key is stored in browser `localStorage`
 - Bundle size is large because the current app pulls the Canton SDK into the browser bundle
 
