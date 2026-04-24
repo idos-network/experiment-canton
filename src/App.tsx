@@ -139,6 +139,20 @@ export default function App() {
   );
   const cantonReady = Boolean(cantonPingExecutionState.result);
   const demoReady = idosReady && cantonReady;
+  const existingProfileHasGeneratedWallet = Boolean(
+    snapshot &&
+      existingWalletState.result?.wallets.some(
+        (wallet) =>
+          wallet.address === snapshot.idosAdapter.publicAddress &&
+          wallet.wallet_type === snapshot.idosAdapter.walletType,
+      ),
+  );
+  const generatedWalletLinked = Boolean(
+    idosState.result?.generatedWalletPresent ||
+      existingProfileHasGeneratedWallet ||
+      linkState.result?.status === "linked" ||
+      linkState.result?.status === "already-linked",
+  );
 
   useEffect(() => {
     loadOrCreateSharedSigner().then(setSnapshot);
@@ -480,7 +494,11 @@ export default function App() {
               <code>NEAR</code> wallet using its implicit address and a browser-generated NEP-413
               signature.
             </p>
-            {!existingWalletState.result ? (
+            {generatedWalletLinked ? (
+              <p className="muted-text">
+                The generated key is already linked to this idOS profile.
+              </p>
+            ) : !existingWalletState.result ? (
               <button
                 className="button"
                 type="button"
